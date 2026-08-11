@@ -14,9 +14,39 @@ const ptSerif = PT_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Статистическая лаборатория",
+  metadataBase: new URL("https://psy-stat-lab.vercel.app"),
+  applicationName: "СтатЛаб",
+  title: "СтатЛаб — статистика для психологов",
   description:
-    "Интерактивный тренажёр статистики, математических методов и психодиагностики для студентов-психологов.",
+    "Интерактивный тренажёр: выбор статистического критерия, ANOVA, регрессия, психометрика, SPSS и практические задачи.",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "СтатЛаб — статистика для психологов",
+    description:
+      "Интерактивный тренажёр по статистике: от выбора критерия и проверки гипотез до психометрики и чтения результатов SPSS.",
+    url: "/",
+    siteName: "СтатЛаб",
+    locale: "ru_RU",
+    type: "website",
+    images: [
+      {
+        url: "/og-statlab-v3.png",
+        width: 1200,
+        height: 630,
+        alt: "СтатЛаб — интерактивный тренажёр по статистике для психологов",
+        type: "image/png",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "СтатЛаб — статистика для психологов",
+    description:
+      "Критерии, модели, психометрика и практика — в одной интерактивной лаборатории.",
+    images: ["/og-statlab-v3.png"],
+  },
   other: {
     "codex-preview": "development",
   },
