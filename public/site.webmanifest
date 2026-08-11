@@ -1,0 +1,21 @@
+{
+  "name": "Статистическая лаборатория",
+  "short_name": "СтатЛаб",
+  "description": "Интерактивный тренажёр статистики для студентов-психологов.",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#312D74",
+  "background_color": "#F3F4FA",
+  "display": "standalone",
+  "lang": "ru"
+}

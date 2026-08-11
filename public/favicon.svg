@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title description">
+  <title id="title">СтатЛаб</title>
+  <desc id="description">Геометрический знак сигмы с точками данных</desc>
+  <rect width="64" height="64" rx="15" fill="#312D74"/>
+  <rect x="3" y="3" width="58" height="58" rx="12" fill="none" stroke="#AAA4E3" stroke-opacity=".48" stroke-width="2"/>
+  <path d="M15 13h34v8H29.2L40 31.7 28.8 43H49v8H15v-7.4L27.5 32 15 20.5V13Z" fill="#FBFBFF"/>
+  <circle cx="49" cy="14" r="5" fill="#E9B44C"/>
+  <circle cx="48" cy="50" r="4" fill="#7BC5C0"/>
+</svg>
