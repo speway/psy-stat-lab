@@ -5904,3 +5904,524 @@ input:focus-visible {
     overflow-x: auto;
   }
 }
+
+/* ——— Устойчивая мобильная вёрстка: 320–760 px ——— */
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+img,
+svg,
+canvas {
+  max-width: 100%;
+}
+
+@media (max-width: 760px) {
+  :root {
+    --mobile-gutter: clamp(16px, 5vw, 22px);
+  }
+
+  main,
+  main > *,
+  section,
+  section > *,
+  :where(
+    .site-header,
+    .manifest,
+    .module-heading,
+    .lab-heading,
+    .lab-shell,
+    .criterion-title,
+    .decision-builder,
+    .trainer-heading,
+    .quiz-card,
+    .psycho-title,
+    .reliability-lab,
+    .report-heading,
+    .report-builder,
+    .science-section,
+    .advanced-heading,
+    .research-pipeline,
+    .hypothesis-builder,
+    .factorial-workbench,
+    .contingency-workbench,
+    .regression-workbench,
+    .method-library,
+    .anova-lab,
+    .norm-lab,
+    .factor-lab,
+    .cluster-head,
+    .cluster-workbench,
+    .frontier-grid,
+    .output-workbench
+  ) > * {
+    min-width: 0;
+  }
+
+  .site-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 104px;
+    padding-right: max(var(--mobile-gutter), env(safe-area-inset-right));
+    padding-left: max(var(--mobile-gutter), env(safe-area-inset-left));
+  }
+
+  .brand {
+    min-width: 0;
+    max-width: calc(100vw - 88px);
+  }
+
+  .brand > div {
+    min-width: 0;
+  }
+
+  .brand strong,
+  .brand small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .header-action {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .site-header nav {
+    width: calc(100vw - max(var(--mobile-gutter), env(safe-area-inset-left)) - max(var(--mobile-gutter), env(safe-area-inset-right)));
+    gap: 20px;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .site-header nav a {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    padding-block: 8px 12px;
+    scroll-snap-align: start;
+  }
+
+  .hero,
+  .manifest,
+  .module-preview,
+  .laboratory,
+  .criterion-section,
+  .trainer-section,
+  .psychometrics-section,
+  .report-section,
+  .science-section,
+  .hypothesis-section,
+  .anova-section,
+  .norms-section,
+  .multivariate-section,
+  .research-map-section,
+  .contingency-section,
+  .item-analysis-section,
+  .output-reader-section,
+  .factorial-section,
+  .regression-section,
+  .methods-frontier-section,
+  .section-page-hero {
+    padding-right: max(var(--mobile-gutter), env(safe-area-inset-right));
+    padding-left: max(var(--mobile-gutter), env(safe-area-inset-left));
+  }
+
+  .section-page-hero {
+    padding-top: 62px;
+    padding-bottom: 58px;
+  }
+
+  .hero-frame {
+    min-height: 0;
+    padding-bottom: 34px;
+  }
+
+  .hero-proof {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    max-width: 100%;
+    margin-top: 38px;
+  }
+
+  .proof-number {
+    font-size: 48px;
+  }
+
+  :where(
+    .manifest,
+    .module-heading,
+    .lab-heading,
+    .lab-shell,
+    .criterion-title,
+    .decision-builder,
+    .trainer-heading,
+    .quiz-card,
+    .psycho-title,
+    .reliability-lab,
+    .report-heading,
+    .report-builder,
+    .science-section,
+    .advanced-heading,
+    .research-pipeline,
+    .hypothesis-builder,
+    .factorial-workbench,
+    .contingency-workbench,
+    .regression-workbench,
+    .method-library,
+    .anova-lab,
+    .norm-lab,
+    .factor-lab,
+    .cluster-head,
+    .cluster-workbench,
+    .frontier-grid,
+    .output-workbench
+  ) {
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  :where(
+    .section-page-hero,
+    .advanced-heading,
+    .lab-heading,
+    .criterion-title,
+    .trainer-heading,
+    .psycho-title,
+    .report-heading
+  ) :where(h1, h2, h3, p, span) {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .section-page-hero h1 {
+    font-size: clamp(2.35rem, 12.5vw, 4.2rem);
+    line-height: 0.98;
+  }
+
+  .lab-heading h2,
+  .criterion-title h2,
+  .trainer-heading h2,
+  .psycho-title h2,
+  .report-heading h2,
+  .advanced-heading h2 {
+    font-size: clamp(2.25rem, 11.5vw, 4rem);
+    line-height: 0.98;
+  }
+
+  .lab-heading,
+  .advanced-heading {
+    gap: 24px;
+  }
+
+  .lab-shell,
+  .decision-builder,
+  .quiz-card,
+  .reliability-lab,
+  .report-builder,
+  .hypothesis-builder,
+  .factorial-workbench,
+  .regression-workbench,
+  .method-library,
+  .anova-lab,
+  .norm-lab,
+  .factor-lab,
+  .cluster-workbench,
+  .contingency-workbench,
+  .output-workbench {
+    margin-top: 38px;
+    box-shadow: 7px 7px 0 var(--rose-soft);
+  }
+
+  .factorial-workbench,
+  .regression-workbench,
+  .cluster-workbench,
+  .output-workbench {
+    box-shadow: none;
+  }
+
+  .lab-controls,
+  .lab-visual,
+  .decision-steps,
+  .criterion-result,
+  .quiz-case,
+  .quiz-options,
+  .reliability-controls,
+  .alpha-gauge,
+  .report-form,
+  .report-output,
+  .hypothesis-builder-controls,
+  .hypothesis-builder-output,
+  .factorial-controls,
+  .factorial-stage,
+  .regression-controls,
+  .regression-stage,
+  .contingency-workbench > aside,
+  .contingency-table-wrap,
+  .anova-controls,
+  .anova-stage,
+  .norm-controls,
+  .norm-visual,
+  .factor-copy,
+  .factor-workbench,
+  .cluster-controls,
+  .cluster-visuals,
+  .mds-lab,
+  .psychophysics-lab,
+  .output-screen,
+  .output-question,
+  .method-detail {
+    min-width: 0;
+    padding: clamp(20px, 6vw, 26px);
+  }
+
+  .stats-row,
+  .anova-stat-grid,
+  .factorial-results,
+  .chi-metrics,
+  .coefficient-grid,
+  .regression-metrics,
+  .score-results,
+  .reliability-summary,
+  .cluster-metrics,
+  .psychophysics-results,
+  .report-inputs {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  :where(
+    .stats-row,
+    .anova-stat-grid,
+    .factorial-results,
+    .chi-metrics,
+    .coefficient-grid,
+    .regression-metrics,
+    .score-results,
+    .reliability-summary,
+    .cluster-metrics,
+    .psychophysics-results,
+    .report-inputs
+  ) > * {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .goal-grid,
+  .design-grid,
+  .scale-grid,
+  .method-filter,
+  .output-task-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .direction-switch,
+  .mds-switch,
+  .scale-type-switch {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .method-list {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .method-list button {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    min-width: 0;
+  }
+
+  .method-list strong,
+  .method-detail,
+  .method-use,
+  .software-paths span,
+  .report-output > p,
+  .output-question button {
+    overflow-wrap: anywhere;
+  }
+
+  .quiz-case {
+    min-height: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .quiz-case h3 {
+    margin-top: 32px;
+  }
+
+  .case-data {
+    position: static;
+    margin-top: 32px;
+  }
+
+  .quiz-options > button {
+    grid-template-columns: 32px minmax(0, 1fr);
+    min-width: 0;
+  }
+
+  .quiz-options > button > i {
+    grid-column: 2;
+  }
+
+  .output-tabs {
+    gap: 14px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .output-tabs span {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .item-workbench,
+  .output-screen {
+    overflow-x: visible;
+  }
+
+  .item-table,
+  .spss-table {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .spss-row {
+    min-width: 620px;
+  }
+
+  .contingency-table-wrap,
+  .loading-table,
+  .spread-strip,
+  .site-header nav {
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  :where(
+    .interaction-chart,
+    .regression-plot,
+    .mds-map,
+    .cluster-scatter,
+    .elbow-chart,
+    .scree-chart,
+    .group-plot,
+    .normal-curve
+  ) {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .chart-topline,
+  .contingency-legend,
+  .factor-summary,
+  .scatter-title {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  :where(
+    .choice-grid,
+    .quiz-options,
+    .direction-switch,
+    .mds-switch,
+    .scale-type-switch,
+    .method-filter,
+    .output-task-tabs,
+    .model-toggle
+  ) button,
+  .report-form select,
+  .report-form input,
+  .hypothesis-builder-controls select {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  input[type="range"] {
+    min-height: 44px;
+    touch-action: pan-y;
+  }
+
+  footer {
+    padding-right: max(var(--mobile-gutter), env(safe-area-inset-right));
+    padding-left: max(var(--mobile-gutter), env(safe-area-inset-left));
+  }
+}
+
+@media (max-width: 360px) {
+  .brand small {
+    display: none;
+  }
+
+  .brand-mark {
+    width: 36px;
+    height: 36px;
+  }
+
+  .section-page-kicker,
+  .section-index {
+    letter-spacing: 0.11em;
+  }
+
+  .lab-heading h2,
+  .criterion-title h2,
+  .trainer-heading h2,
+  .psycho-title h2,
+  .report-heading h2,
+  .advanced-heading h2 {
+    font-size: 1.75rem;
+    overflow-wrap: break-word;
+  }
+
+  .goal-grid,
+  .design-grid,
+  .scale-grid,
+  .method-filter,
+  .output-task-tabs,
+  .stats-row,
+  .anova-stat-grid,
+  .factorial-results,
+  .chi-metrics,
+  .coefficient-grid,
+  .regression-metrics,
+  .score-results,
+  .reliability-summary,
+  .cluster-metrics,
+  .psychophysics-results,
+  .report-inputs {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .direction-switch,
+  .mds-switch,
+  .scale-type-switch {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .software-paths,
+  .hypothesis-pair,
+  .method-checks,
+  .method-paths {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .report-output > p {
+    font-size: 1.18rem;
+  }
+}
