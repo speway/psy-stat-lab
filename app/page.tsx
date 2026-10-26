@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import AdvancedLabs from "./AdvancedLabs";
 import ResearchWorkbench from "./ResearchWorkbench";
+import StatSandbox from "./StatSandbox";
+import SPSSGuides from "./SPSSGuides";
 
 type SampleStats = {
   mean: number;
@@ -353,7 +355,7 @@ function getCriterion(goal: string, design: string, scale: string) {
   };
 }
 
-export type StatLabView = "home" | "basics" | "methods" | "models" | "psychometrics" | "multivariate" | "practice";
+export type StatLabView = "home" | "basics" | "sandbox" | "methods" | "guides" | "models" | "psychometrics" | "multivariate" | "practice";
 
 const pageMeta: Record<Exclude<StatLabView, "home">, { index: string; kicker: string; title: string; lead: string; topics: string[] }> = {
   basics: {
@@ -363,12 +365,26 @@ const pageMeta: Record<Exclude<StatLabView, "home">, { index: string; kicker: st
     lead: "Начни с устройства данных: посмотри на форму распределения, разброс и выбросы, а затем собери статистическое решение по дизайну исследования.",
     topics: ["Описательная статистика", "Дисперсия и выбросы", "Дерево выбора критерия"],
   },
+  sandbox: {
+    index: "ИНТЕРАКТИВ",
+    kicker: "СТАТИСТИЧЕСКАЯ ПЕСОЧНИЦА",
+    title: "Дёргай за рычаги и ломай предпосылки",
+    lead: "Живой интерактивный полигон: сравнивай 2 выборки, двигай размер эффекта d Коэна, исследуй перекрытие кривых, внедряй точки-убийцы в регрессию и проводи психометрическую хирургию опросников.",
+    topics: ["Сравнение 2 выборок", "Мощность и Overlap d", "Корреляции и выбросы", "Хирургия опросников"],
+  },
   methods: {
     index: "РАЗДЕЛ 02",
     kicker: "ГИПОТЕЗЫ И КРИТЕРИИ",
     title: "Формулируй точно, проверяй осмысленно",
     lead: "Справочник основных критериев с корректными H₀ и H₁, предпосылками, типичными ошибками и маршрутами в SPSS и jamovi.",
     topics: ["Конструктор H₀ и H₁", "19 статистических методов", "Предпосылки и ловушки"],
+  },
+  guides: {
+    index: "ПРАКТИКУМ SPSS",
+    kicker: "ПОШАГОВЫЕ РУКОВОДСТВА",
+    title: "От меню программы до вывода в диплом",
+    lead: "Точные пошаговые маршруты со всеми флажками в SPSS и jamovi, интерактивная анатомия таблиц вывода, готовый синтаксис, код на Python и разбор типичных ошибок на защите.",
+    topics: ["Пошаговые меню SPSS", "Куда смотреть в таблицах", "Синтаксис и Python", "Ошибки на защите"],
   },
   models: {
     index: "РАЗДЕЛ 03",
@@ -402,7 +418,9 @@ const pageMeta: Record<Exclude<StatLabView, "home">, { index: string; kicker: st
 
 const navigation: Array<{ view: Exclude<StatLabView, "home">; label: string; href: string }> = [
   { view: "basics", label: "Основы", href: "/basics" },
+  { view: "sandbox", label: "Песочница", href: "/sandbox" },
   { view: "methods", label: "Критерии", href: "/methods" },
+  { view: "guides", label: "Гайды SPSS", href: "/guides" },
   { view: "models", label: "Модели", href: "/models" },
   { view: "psychometrics", label: "Психометрика", href: "/psychometrics" },
   { view: "multivariate", label: "Многомерные", href: "/multivariate" },
@@ -726,11 +744,13 @@ export default function Home({ view = "home" }: { view?: StatLabView }) {
         <div className="module-grid">
           {[
             ["01", "Основы и выбор метода", "Распределения, дисперсия, выбросы и дерево статистического решения.", "СТАРТ", "/basics"],
-            ["02", "Критерии и гипотезы", "Корректные H₀ и H₁, предпосылки, ловушки, SPSS и jamovi.", "СПРАВОЧНИК", "/methods"],
-            ["03", "ANOVA и модели", "Одно- и двухфакторный ANOVA, χ², регрессия и диагностика модели.", "ЛАБОРАТОРИЯ", "/models"],
-            ["04", "Психометрика и нормы", "z, T, стэны, обратные пункты, α, ω, KR-20 и анализ шкалы.", "ИЗМЕРЕНИЕ", "/psychometrics"],
-            ["05", "Многомерные методы", "PCA, EFA, кластеры, MDS и психофизика на интерактивных моделях.", "ПРОДВИНУТОЕ", "/multivariate"],
-            ["06", "Практикум и отчёт", "Кейсы, чтение таблиц и генератор корректной формулировки результата.", "ТРЕНАЖЁР", "/practice"],
+            ["02", "Песочница данных", "Двойные выборки, мощность 1-β, перекрытие кривых, выбросы и хирургия тестов.", "ИНТЕРАКТИВ", "/sandbox"],
+            ["03", "Критерии и гипотезы", "Корректные H₀ и H₁, предпосылки, ловушки, SPSS и jamovi.", "СПРАВОЧНИК", "/methods"],
+            ["04", "Гайды SPSS и jamovi", "Пошаговые маршруты меню, анатомия таблиц вывода, синтаксис и код на Python.", "РУКОВОДСТВО", "/guides"],
+            ["05", "ANOVA и модели", "Одно- и двухфакторный ANOVA, χ², регрессия и диагностика модели.", "ЛАБОРАТОРИЯ", "/models"],
+            ["06", "Психометрика и нормы", "z, T, стэны, обратные пункты, α, ω, KR-20 и анализ шкалы.", "ИЗМЕРЕНИЕ", "/psychometrics"],
+            ["07", "Многомерные методы", "PCA, EFA, кластеры, MDS и психофизика на интерактивных моделях.", "ПРОДВИНУТОЕ", "/multivariate"],
+            ["08", "Практикум и отчёт", "Кейсы, чтение таблиц и генератор корректной формулировки результата.", "ТРЕНАЖЁР", "/practice"],
           ].map(([number, title, description, type, href]) => (
             <article className="module-card" key={number}>
               <span>{number}</span>
@@ -1011,6 +1031,10 @@ export default function Home({ view = "home" }: { view?: StatLabView }) {
       {view === "models" && <AdvancedLabs section="models" />}
       {view === "psychometrics" && <AdvancedLabs section="psychometrics" />}
       {view === "multivariate" && <AdvancedLabs section="multivariate" />}
+
+      {view === "sandbox" && <StatSandbox />}
+      {view === "guides" && <SPSSGuides />}
+      {view === "methods" && <SPSSGuides />}
 
       {view === "methods" && <ResearchWorkbench section="methods" />}
       {view === "models" && <ResearchWorkbench section="models" />}
