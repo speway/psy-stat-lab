@@ -7380,6 +7380,32 @@ legend.segmented-legend,
   margin-top: 32px;
 }
 
+/* SPSS guide list: labels are multi-word Russian strings, not short symbols.
+   Override the fixed 48px first column so labels display without overflow. */
+.spss-guide-workbench .method-list button {
+  grid-template-columns: minmax(0, auto) 1fr auto;
+  align-items: start;
+  min-height: 56px;
+}
+
+.spss-guide-workbench .method-list span {
+  font-size: 12px;
+  font-family: var(--font-manrope), sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  white-space: normal;
+  word-break: break-word;
+  min-width: 0;
+  max-width: 95px;
+  line-height: 1.3;
+  padding-top: 2px;
+}
+
+.spss-guide-workbench .method-list button.selected span,
+.spss-guide-workbench .method-list button:hover span {
+  color: var(--rose);
+}
+
 .spss-detail-pane {
   display: flex;
   flex-direction: column;
