@@ -625,3 +625,186 @@ export function fmtP(p, digits = 3) {
   if (p < 0.001) return '< 0,001';
   return `= ${fmt(p, digits)}`;
 }
+/**
+ * Generates synthetic paired (within-subject / repeated measures) data.
+ * @param {Object} options
+ * @param {number} [options.n=25] - Number of pairs (participants)
+ * @param {number} [options.mBase=50] - Baseline mean (Before)
+ * @param {number} [options.meanDiff=-6] - Target mean change (After - Before)
+ * @param {number} [options.sdBase=10] - Baseline standard deviation
+ * @param {number} [options.r=0.65] - Correlation between Before and After (-0.95 to 0.95)
+ * @param {boolean} [options.constantDiff=false] - If true, produces identical change for all pairs (s_D = 0)
+ * @param {number} [options.seed=42]
+ * @returns {Array<{ id: number, before: number, after: number, diff: number }>}
+ */
+export function generatePairedSample({
+  n = 25,
+  mBase = 50,
+  meanDiff = -6,
+  sdBase = 10,
+  r = 0.65,
+  constantDiff = false,
+  seed = 42
+}) {
+  const rand = seededRandom(seed);
+  const pairs = [];
+  const clampedR = Math.max(-0.95, Math.min(0.95, r));
+
+  for (let i = 0; i < n; i++) {
+    const u1 = Math.max(rand(), 0.00001);
+    const u2 = rand();
+    const z1 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+
+    const u3 = Math.max(rand(), 0.00001);
+    const u4 = rand();
+    const z2 = Math.sqrt(-2 * Math.log(u3)) * Math.cos(2 * Math.PI * u4);
+
+    const beforeVal = mBase + z1 * sdBase;
+    let afterVal;
+
+    if (constantDiff) {
+      afterVal = beforeVal + meanDiff;
+    } else {
+      const zAfter = clampedR * z1 + Math.sqrt(Math.max(0, 1 - clampedR * clampedR)) * z2;
+      afterVal = mBase + meanDiff + zAfter * sdBase;
+    }
+
+    const diff = afterVal - beforeVal;
+    pairs.push({
+      id: i + 1,
+      before: beforeVal,
+      after: afterVal,
+      diff
+    });
+  }
+
+  return pairs;
+}
+
+/**
+ * Computes paired-samples t-test statistics, confidence interval, effect sizes,
+ * and contrast with mistakenly applied independent samples t-test.
+ * @param {Array<{ id: number, before: number, after: number, diff: number }>} pairs
+ */
+export function computePairedSampleTests(pairs) {
+  const n = pairs.length;
+  if (!n || n < 2) {
+    return {
+      n: 0,
+      isDegenerate: true,
+      meanBefore: 0,
+      meanAfter: 0,
+      meanDiff: 0,
+      sdBefore: 0,
+      sdAfter: 0,
+      sdDiff: 0,
+      seDiff: 0,
+      tVal: null,
+      df: 0,
+      pVal: null,
+      ciLower: null,
+      ciUpper: null,
+      marginOfError: null,
+      cohenDz: null,
+      cohenDav: null,
+      r: null,
+      independentContrast: null
+    };
+  }
+
+  const befores = pairs.map((p) => p.before);
+  const afters = pairs.map((p) => p.after);
+  const diffs = pairs.map((p) => p.diff);
+
+  const meanBefore = befores.reduce((s, v) => s + v, 0) / n;
+  const meanAfter = afters.reduce((s, v) => s + v, 0) / n;
+  const meanDiff = diffs.reduce((s, v) => s + v, 0) / n;
+
+  const varBefore = befores.reduce((s, v) => s + (v - meanBefore) ** 2, 0) / (n - 1);
+  const varAfter = afters.reduce((s, v) => s + (v - meanAfter) ** 2, 0) / (n - 1);
+  const varDiff = diffs.reduce((s, v) => s + (v - meanDiff) ** 2, 0) / (n - 1);
+
+  const sdBefore = Math.sqrt(Math.max(0, varBefore));
+  const sdAfter = Math.sqrt(Math.max(0, varAfter));
+  const sdDiff = Math.sqrt(Math.max(0, varDiff));
+
+  let cov = 0;
+  for (let i = 0; i < n; i++) {
+    cov += (befores[i] - meanBefore) * (afters[i] - meanAfter);
+  }
+  cov /= (n - 1);
+  const r = (sdBefore > 0 && sdAfter > 0) ? (cov / (sdBefore * sdAfter)) : 0;
+
+  // Zero-variance edge case (all differences identical)
+  if (sdDiff <= 1e-10) {
+    return {
+      n,
+      isDegenerate: true,
+      meanBefore,
+      meanAfter,
+      meanDiff,
+      sdBefore,
+      sdAfter,
+      sdDiff: 0,
+      seDiff: 0,
+      tVal: null,
+      df: n - 1,
+      pVal: null,
+      ciLower: meanDiff,
+      ciUpper: meanDiff,
+      marginOfError: 0,
+      cohenDz: null,
+      cohenDav: (sdBefore + sdAfter > 0) ? (meanDiff / ((sdBefore + sdAfter) / 2)) : null,
+      r,
+      independentContrast: null
+    };
+  }
+
+  const seDiff = sdDiff / Math.sqrt(n);
+  const df = n - 1;
+  const tVal = meanDiff / seDiff;
+  const pVal = studentTPValue(tVal, df);
+
+  const tCrit = studentTQuantile(0.05, df);
+  const marginOfError = tCrit * seDiff;
+  const ciLower = meanDiff - marginOfError;
+  const ciUpper = meanDiff + marginOfError;
+
+  const cohenDz = meanDiff / sdDiff;
+  const cohenDav = (sdBefore + sdAfter > 0) ? (meanDiff / ((sdBefore + sdAfter) / 2)) : 0;
+
+  // Contrast with independent t-test (if one mistakenly treated pairs as independent groups)
+  const seIndep = Math.sqrt((varBefore / n) + (varAfter / n));
+  const dfIndep = 2 * n - 2;
+  const tIndep = seIndep > 0 ? (meanDiff / seIndep) : null;
+  const pIndep = tIndep !== null ? studentTPValue(tIndep, dfIndep) : null;
+  const seReductionPct = seIndep > 0 ? Math.max(0, (1 - (seDiff / seIndep)) * 100) : 0;
+
+  return {
+    n,
+    isDegenerate: false,
+    meanBefore,
+    meanAfter,
+    meanDiff,
+    sdBefore,
+    sdAfter,
+    sdDiff,
+    seDiff,
+    tVal,
+    df,
+    pVal,
+    ciLower,
+    ciUpper,
+    marginOfError,
+    cohenDz,
+    cohenDav,
+    r,
+    independentContrast: {
+      tIndep,
+      dfIndep,
+      pIndep,
+      seIndep,
+      seReductionPct
+    }
+  };
+}

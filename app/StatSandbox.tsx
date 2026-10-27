@@ -12,6 +12,8 @@ import {
   computeSampleStats,
   computeTwoSampleTests,
   generateSample,
+  generatePairedSample,
+  computePairedSampleTests,
   fmt,
   fmtP,
 } from "./stat-calc";
@@ -35,6 +37,84 @@ interface ScenarioPreset {
   outliers2: number;
   notes: string;
 }
+
+interface PairedScenarioPreset {
+  id: string;
+  name: string;
+  description: string;
+  n: number;
+  mBase: number;
+  meanDiff: number;
+  sdBase: number;
+  r: number;
+  constantDiff?: boolean;
+  variableName: string;
+  unit: string;
+}
+
+const PAIRED_SCENARIO_PRESETS: PairedScenarioPreset[] = [
+  {
+    id: "anxiety",
+    name: "Тренинг тревожности (STAI)",
+    description: "Уровень тревожности одних и тех же клиентов до и после 8-недельного курса КПТ. За счёт вычитания индивидуальных различий парный тест обнаруживает выраженную динамику.",
+    n: 30,
+    mBase: 52,
+    meanDiff: -8.5,
+    sdBase: 10,
+    r: 0.70,
+    variableName: "Реактивная тревожность",
+    unit: "баллы",
+  },
+  {
+    id: "reaction",
+    name: "Когнитивная тренировка (мс)",
+    description: "Время сенсомоторной реакции до и после тренинга внимания. Базовый разброс между людьми велик (SD = 55 мс), но внутрииндивидуальный сдвиг согласован: парный тест снижает ошибку более чем на 60%.",
+    n: 35,
+    mBase: 450,
+    meanDiff: -32,
+    sdBase: 55,
+    r: 0.85,
+    variableName: "Время простой реакции",
+    unit: "мс",
+  },
+  {
+    id: "burnout",
+    name: "Выгорание учителей (MBI)",
+    description: "Динамика эмоционального истощения педагогов после цикла интервизий. Умеренная корреляция замеров (r = 0.42) иллюстрирует случай, когда индивидуальные траектории менее однородны.",
+    n: 25,
+    mBase: 36,
+    meanDiff: -4.5,
+    sdBase: 11,
+    r: 0.42,
+    variableName: "Эмоциональное истощение",
+    unit: "баллы",
+  },
+  {
+    id: "placebo",
+    name: "Плацебо / Спонтанная динамика (H₀)",
+    description: "Истинный популяционный сдвиг равен 0. Индивидуальные колебания участников обусловлены стохастическим шумом. Доверительный интервал включает 0, p > .05.",
+    n: 35,
+    mBase: 50,
+    meanDiff: 0,
+    sdBase: 10,
+    r: 0.75,
+    variableName: "Шкала самочувствия",
+    unit: "баллы",
+  },
+  {
+    id: "zero-diff",
+    name: "Константный сдвиг (s_D = 0)",
+    description: "Математический вырожденный случай: каждый участник улучшился строго на -5,0 баллов. Разброс разностей s_D = 0, критерий Стьюдента даёт деление на ноль и неприменим.",
+    n: 20,
+    mBase: 50,
+    meanDiff: -5.0,
+    sdBase: 10,
+    r: 0.70,
+    constantDiff: true,
+    variableName: "Учебный модельный балл",
+    unit: "баллы",
+  },
+];
 
 const scenarioPresets: ScenarioPreset[] = [
   {
@@ -106,9 +186,9 @@ const scenarioPresets: ScenarioPreset[] = [
 export default function StatSandbox({
   initialTab = "dual",
 }: {
-  initialTab?: "dual" | "power" | "correlation" | "psychometrics";
+  initialTab?: "dual" | "paired" | "power" | "correlation" | "psychometrics";
 } = {}) {
-  const [activeTab, setActiveTab] = useState<"dual" | "power" | "correlation" | "psychometrics">(initialTab);
+  const [activeTab, setActiveTab] = useState<"dual" | "paired" | "power" | "correlation" | "psychometrics">(initialTab);
 
   // --- TAB 1: DUAL SAMPLE STATE ---
   const [n1, setN1] = useState(35);
@@ -204,6 +284,76 @@ NPAR TESTS
     navigator.clipboard.writeText(syntax);
     setSpssCopied(true);
     setTimeout(() => setSpssCopied(false), 2000);
+  };
+
+
+  // --- TAB: PAIRED SAMPLES LAB STATE ---
+  const [pairedN, setPairedN] = useState(30);
+  const [pairedMBase, setPairedMBase] = useState(52);
+  const [pairedMeanDiff, setPairedMeanDiff] = useState(-8.5);
+  const [pairedSdBase, setPairedSdBase] = useState(10);
+  const [pairedR, setPairedR] = useState(0.70);
+  const [pairedConstantDiff, setPairedConstantDiff] = useState(false);
+  const [pairedSeed, setPairedSeed] = useState(77);
+  const [activePairedPreset, setActivePairedPreset] = useState<string>("anxiety");
+  const [pairedSpssCopied, setPairedSpssCopied] = useState(false);
+
+  const applyPairedPreset = (preset: PairedScenarioPreset) => {
+    setActivePairedPreset(preset.id);
+    setPairedN(preset.n);
+    setPairedMBase(preset.mBase);
+    setPairedMeanDiff(preset.meanDiff);
+    setPairedSdBase(preset.sdBase);
+    setPairedR(preset.r);
+    setPairedConstantDiff(!!preset.constantDiff);
+    setPairedSeed((s) => s + 1);
+  };
+
+  const pairedData = useMemo(() => {
+    return generatePairedSample({
+      n: pairedN,
+      mBase: pairedMBase,
+      meanDiff: pairedMeanDiff,
+      sdBase: pairedSdBase,
+      r: pairedR,
+      constantDiff: pairedConstantDiff,
+      seed: pairedSeed,
+    });
+  }, [pairedN, pairedMBase, pairedMeanDiff, pairedSdBase, pairedR, pairedConstantDiff, pairedSeed]);
+
+  const pairedResults = useMemo(() => {
+    return computePairedSampleTests(pairedData);
+  }, [pairedData]);
+
+  const handleExportPairedCsv = () => {
+    let csv = "participant_id,before,after,difference\n";
+    pairedData.forEach((p) => {
+      csv += `P_${String(p.id).padStart(2, "0")},${p.before.toFixed(2)},${p.after.toFixed(2)},${p.diff.toFixed(2)}\n`;
+    });
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `paired_samples_before_after_n${pairedN}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleCopyPairedSpss = () => {
+    const syntax = `* Анализ связанных выборок (парный t-критерий) в SPSS.
+* 1. Описательные статистики, парная корреляция и парный t-тест:
+T-TEST PAIRS=Before WITH After (PAIRED)
+  /CRITERIA=CI(.95)
+  /MISSING=ANALYSIS.
+
+* 2. Непараметрический Т-критерий Вилкоксона для связанных выборок:
+NPAR TESTS
+  /WILCOXON=Before WITH After (PAIRED)
+  /MISSING ANALYSIS.`;
+    navigator.clipboard.writeText(syntax);
+    setPairedSpssCopied(true);
+    setTimeout(() => setPairedSpssCopied(false), 2000);
   };
 
   // --- TAB 2: POWER & EFFECT SIZE STATE ---
@@ -478,7 +628,16 @@ NPAR TESTS
             role="tab"
             aria-selected={activeTab === "dual"}
           >
-            <span>01</span> Сравнение 2 выборок и предпосылки
+            <span>01</span> Сравнение 2 независимых выборок
+          </button>
+          <button
+            type="button"
+            className={activeTab === "paired" ? "active" : ""}
+            onClick={() => setActiveTab("paired")}
+            role="tab"
+            aria-selected={activeTab === "paired"}
+          >
+            <span>02</span> Парные измерения «до / после»
           </button>
           <button
             type="button"
@@ -487,7 +646,7 @@ NPAR TESTS
             role="tab"
             aria-selected={activeTab === "power"}
           >
-            <span>02</span> Мощность и размер эффекта (d)
+            <span>03</span> Мощность и размер эффекта (d)
           </button>
           <button
             type="button"
@@ -496,7 +655,7 @@ NPAR TESTS
             role="tab"
             aria-selected={activeTab === "correlation"}
           >
-            <span>03</span> Корреляции и точка-убийца
+            <span>04</span> Корреляции и точка-убийца
           </button>
           <button
             type="button"
@@ -505,7 +664,7 @@ NPAR TESTS
             role="tab"
             aria-selected={activeTab === "psychometrics"}
           >
-            <span>04</span> Психометрическая хирургия опросников
+            <span>05</span> Психометрическая хирургия опросников
           </button>
         </div>
       </div>
@@ -980,6 +1139,563 @@ NPAR TESTS
                         : `Разница выборочных дисперсий не достигла статистической значимости (p Ливиня ${fmtP(testResults.pLevene)}). Методологическое примечание: сохранение H₀ не доказывает строгое равенство дисперсий (при малых n критерий Ливиня имеет низкую мощность). Согласно современным методологическим публикациям (Delacre et al., 2017), t-критерий Уэлча безопасен для применения по умолчанию: при равенстве дисперсий он практически не уступает по мощности Стьюденту, а при скрытом неравенстве защищает от ложноположительных выводов.`}
                     </p>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* ======================================================== */}
+      {/* TAB: PAIRED SAMPLES LAB (BEFORE / AFTER WITHIN-SUBJECT) */}
+      {/* ======================================================== */}
+      {activeTab === "paired" && (
+        <div className="sandbox-panel">
+          {/* Presets row */}
+          <div className="presets-bar">
+            <span className="presets-label">УЧЕБНЫЕ СЦЕНАРИИ «ДО / ПОСЛЕ»:</span>
+            <div className="presets-list">
+              {PAIRED_SCENARIO_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  className={`preset-btn ${activePairedPreset === preset.id ? "active" : ""}`}
+                  onClick={() => applyPairedPreset(preset)}
+                >
+                  {preset.name}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="preset-btn rand-btn"
+                onClick={() => setPairedSeed((s) => s + 1)}
+              >
+                ↻ Случайная генерация
+              </button>
+            </div>
+          </div>
+
+          <div className="sandbox-grid paired-sample-grid">
+            {/* Left Controls column */}
+            <div className="controls-column">
+              <div className="sample-control-card">
+                <div className="card-header">
+                  <span className="group-badge">МОДЕЛИРОВАНИЕ ПОВТОРНЫХ ИЗМЕРЕНИЙ</span>
+                  <small>n = {pairedN} пар участников</small>
+                </div>
+
+                <div className="slider-group">
+                  <label>
+                    <div className="slider-title">
+                      <span>Число участников / пар (n)</span>
+                      <strong>{pairedN}</strong>
+                    </div>
+                    <input
+                      type="range"
+                      min={10}
+                      max={100}
+                      step={5}
+                      value={pairedN}
+                      onChange={(e) => {
+                        setPairedN(Number(e.target.value));
+                        setActivePairedPreset("custom");
+                      }}
+                    />
+                    <small>Каждый участник измеряется дважды: «До» и «После»</small>
+                  </label>
+
+                  <label>
+                    <div className="slider-title">
+                      <span>Среднее изменение (ΔM = После − До)</span>
+                      <strong>{fmt(pairedMeanDiff, 1)}</strong>
+                    </div>
+                    <input
+                      type="range"
+                      min={-25}
+                      max={25}
+                      step={0.5}
+                      value={pairedMeanDiff}
+                      onChange={(e) => {
+                        setPairedMeanDiff(Number(e.target.value));
+                        setActivePairedPreset("custom");
+                      }}
+                    />
+                    <small>Отрицательный сдвиг — снижение (напр., симптомов), положительный — прирост</small>
+                  </label>
+
+                  <label>
+                    <div className="slider-title">
+                      <span>Базовый средний уровень (До)</span>
+                      <strong>{fmt(pairedMBase, 0)}</strong>
+                    </div>
+                    <input
+                      type="range"
+                      min={20}
+                      max={500}
+                      step={5}
+                      value={pairedMBase}
+                      onChange={(e) => {
+                        setPairedMBase(Number(e.target.value));
+                        setActivePairedPreset("custom");
+                      }}
+                    />
+                    <small>Исходный уровень шкалы до воздействия</small>
+                  </label>
+
+                  <label>
+                    <div className="slider-title">
+                      <span>Базовый разброс участников (SD)</span>
+                      <strong>{fmt(pairedSdBase, 0)}</strong>
+                    </div>
+                    <input
+                      type="range"
+                      min={3}
+                      max={60}
+                      step={1}
+                      value={pairedSdBase}
+                      onChange={(e) => {
+                        setPairedSdBase(Number(e.target.value));
+                        setActivePairedPreset("custom");
+                      }}
+                    />
+                    <small>Межиндивидуальные различия в генеральной совокупности</small>
+                  </label>
+
+                  <label>
+                    <div className="slider-title">
+                      <span>Связь измерений (корреляция r)</span>
+                      <strong>{fmt(pairedR, 2)}</strong>
+                    </div>
+                    <input
+                      type="range"
+                      min={-0.5}
+                      max={0.95}
+                      step={0.05}
+                      value={pairedR}
+                      onChange={(e) => {
+                        setPairedR(Number(e.target.value));
+                        setActivePairedPreset("custom");
+                      }}
+                    />
+                    <small>Высокий r устраняет индивидуальный шум и снижает SE разностей</small>
+                  </label>
+
+                  <label className="checkbox-control">
+                    <input
+                      type="checkbox"
+                      checked={pairedConstantDiff}
+                      onChange={(e) => {
+                        setPairedConstantDiff(e.target.checked);
+                        setActivePairedPreset("custom");
+                      }}
+                    />
+                    <span>Нулевой разброс разностей (s_D = 0, все сдвинулись строго одинаково)</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Actions card */}
+              <div className="card-actions">
+                <button type="button" className="action-btn" onClick={handleExportPairedCsv}>
+                  📥 Экспорт парной выборки (CSV)
+                </button>
+                <button type="button" className="action-btn" onClick={handleCopyPairedSpss}>
+                  {pairedSpssCopied ? "✓ Синтаксис SPSS скопирован!" : "📋 Скопировать синтаксис SPSS для парного t"}
+                </button>
+                <a href="/guides#paired-t" className="action-btn spss-guide-btn">
+                  📖 Перейти к гайду SPSS: парный t-тест →
+                </a>
+              </div>
+            </div>
+
+            {/* Right Analytics and Charts column */}
+            <div className="analytics-column">
+              {/* Spaghetti Plot Card */}
+              <div className="chart-card spaghetti-chart-card">
+                <div className="chart-header">
+                  <div>
+                    <span className="chart-title">ИНДИВИДУАЛЬНЫЕ ТРАЕКТОРИИ УЧАСТНИКОВ (SPAGHETTI PLOT)</span>
+                    <small>Соединение точек одного и того же человека «До» и «После»</small>
+                  </div>
+                  <span className="badge badge-simulated">МОДЕЛИРОВАННЫЕ ДАННЫЕ</span>
+                </div>
+
+                <div className="chart-wrapper">
+                  {(() => {
+                    const allVals = pairedData.flatMap((p) => [p.before, p.after]);
+                    const minV = Math.min(...allVals);
+                    const maxV = Math.max(...allVals);
+                    const span = (maxV - minV) || 1;
+                    const yScale = (v: number) => 240 - ((v - minV) / span) * 190;
+                    const xBefore = 120;
+                    const xAfter = 480;
+
+                    return (
+                      <svg
+                        viewBox="0 0 600 280"
+                        className="paired-svg"
+                        role="img"
+                        aria-label="График индивидуальных траекторий участников до и после экспериментального воздействия"
+                      >
+                        {/* Axes and Grid */}
+                        <line x1={xBefore} y1={25} x2={xBefore} y2={255} stroke="var(--line)" strokeWidth={2} />
+                        <line x1={xAfter} y1={25} x2={xAfter} y2={255} stroke="var(--line)" strokeWidth={2} />
+
+                        {/* Axis Labels */}
+                        <text x={xBefore} y={18} textAnchor="middle" fill="var(--ink)" fontSize={11} fontWeight="bold">
+                          ДО ЗАМЕРА
+                        </text>
+                        <text x={xAfter} y={18} textAnchor="middle" fill="var(--ink)" fontSize={11} fontWeight="bold">
+                          ПОСЛЕ ЗАМЕРА
+                        </text>
+
+                        {/* Individual Participant Lines */}
+                        {pairedData.map((p) => {
+                          const y1 = yScale(p.before);
+                          const y2 = yScale(p.after);
+                          const color = p.diff < -0.1 ? "#524ba7" : p.diff > 0.1 ? "#e9b44c" : "#94a3b8";
+                          return (
+                            <g key={p.id} className="participant-trajectory">
+                              <line
+                                x1={xBefore}
+                                y1={y1}
+                                x2={xAfter}
+                                y2={y2}
+                                stroke={color}
+                                strokeWidth={1.4}
+                                strokeOpacity={0.4}
+                              />
+                              <circle cx={xBefore} cy={y1} r={3} fill={color} opacity={0.6} />
+                              <circle cx={xAfter} cy={y2} r={3} fill={color} opacity={0.6} />
+                            </g>
+                          );
+                        })}
+
+                        {/* Mean Trajectory Bold Line */}
+                        <line
+                          x1={xBefore}
+                          y1={yScale(pairedResults.meanBefore)}
+                          x2={xAfter}
+                          y2={yScale(pairedResults.meanAfter)}
+                          stroke="#b23a48"
+                          strokeWidth={4.5}
+                        />
+                        <circle
+                          cx={xBefore}
+                          cy={yScale(pairedResults.meanBefore)}
+                          r={6.5}
+                          fill="#b23a48"
+                          stroke="#fff"
+                          strokeWidth={2}
+                        />
+                        <circle
+                          cx={xAfter}
+                          cy={yScale(pairedResults.meanAfter)}
+                          r={6.5}
+                          fill="#b23a48"
+                          stroke="#fff"
+                          strokeWidth={2}
+                        />
+
+                        {/* Mean labels */}
+                        <text
+                          x={xBefore - 12}
+                          y={yScale(pairedResults.meanBefore) + 4}
+                          textAnchor="end"
+                          fill="#b23a48"
+                          fontSize={11}
+                          fontWeight="bold"
+                        >
+                          M₁ = {fmt(pairedResults.meanBefore, 1)}
+                        </text>
+                        <text
+                          x={xAfter + 12}
+                          y={yScale(pairedResults.meanAfter) + 4}
+                          textAnchor="start"
+                          fill="#b23a48"
+                          fontSize={11}
+                          fontWeight="bold"
+                        >
+                          M₂ = {fmt(pairedResults.meanAfter, 1)}
+                        </text>
+
+                        {/* Delta indicator */}
+                        <g transform={`translate(300, ${yScale((pairedResults.meanBefore + pairedResults.meanAfter) / 2) - 14})`}>
+                          <rect x={-45} y={-10} width={90} height={20} rx={10} fill="#b23a48" />
+                          <text x={0} y={4} textAnchor="middle" fill="#fff" fontSize={10} fontWeight="bold">
+                            Δ = {fmt(pairedResults.meanDiff, 1)}
+                          </text>
+                        </g>
+                      </svg>
+                    );
+                  })()}
+                </div>
+
+                <div className="paired-chart-legend">
+                  <div className="legend-item">
+                    <span className="legend-line line-decreased"></span>
+                    <span>Снижение ({pairedData.filter((p) => p.diff < -0.1).length} чел.)</span>
+                  </div>
+                  <div className="legend-item">
+                    <span className="legend-line line-increased"></span>
+                    <span>Прирост ({pairedData.filter((p) => p.diff > 0.1).length} чел.)</span>
+                  </div>
+                  <div className="legend-item">
+                    <span className="legend-line line-mean"></span>
+                    <span>Средний тренд выборки (ΔM = {fmt(pairedResults.meanDiff, 2)})</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Differences Distribution & 95% CI Card */}
+              <div className="chart-card diff-chart-card">
+                <div className="chart-header">
+                  <div>
+                    <span className="chart-title">РАСПРЕДЕЛЕНИЕ РАЗНОСТЕЙ (D = ПОСЛЕ − ДО) И 95% ДОВЕРИТЕЛЬНЫЙ ИНТЕРВАЛ</span>
+                    <small>Основа парного критерия: анализ одной выборки внутрииндивидуальных сдвигов</small>
+                  </div>
+                </div>
+
+                <div className="chart-wrapper">
+                  {(() => {
+                    const diffs = pairedData.map((p) => p.diff);
+                    const ciLow = pairedResults.ciLower ?? 0;
+                    const ciHigh = pairedResults.ciUpper ?? 0;
+                    const minD = Math.min(0, ...diffs, ciLow) - 2;
+                    const maxD = Math.max(0, ...diffs, ciHigh) + 2;
+                    const spanD = (maxD - minD) || 1;
+                    const yScaleD = (d: number) => 180 - ((d - minD) / spanD) * 150;
+                    const zeroY = yScaleD(0);
+
+                    return (
+                      <svg
+                        viewBox="0 0 600 210"
+                        className="diff-svg"
+                        role="img"
+                        aria-label="Распределение индивидуальных разностей и 95% доверительный интервал среднего изменения"
+                      >
+                        {/* H0 Zero Reference Line */}
+                        <line x1={40} y1={zeroY} x2={560} y2={zeroY} stroke="#dc2626" strokeDasharray="4 4" strokeWidth={1.5} />
+                        <text x={45} y={zeroY - 6} fill="#dc2626" fontSize={10} fontWeight="bold">
+                          H₀: Δ = 0 (нулевой эффект)
+                        </text>
+
+                        {/* Individual Difference Points with horizontal jitter */}
+                        {pairedData.map((p) => {
+                          const y = yScaleD(p.diff);
+                          const x = 160 + Math.sin(p.id * 4.3) * 70;
+                          const color = p.diff < -0.1 ? "#524ba7" : p.diff > 0.1 ? "#e9b44c" : "#94a3b8";
+                          return <circle key={p.id} cx={x} cy={y} r={3.5} fill={color} opacity={0.65} />;
+                        })}
+                        <text x={160} y={202} textAnchor="middle" fill="var(--muted)" fontSize={10}>
+                          Индивидуальные разности Dᵢ (n = {pairedN})
+                        </text>
+
+                        {/* 95% CI Whiskers and Mean Dot */}
+                        {pairedResults.ciLower !== null && pairedResults.ciUpper !== null && (
+                          <g className="ci-block">
+                            <line
+                              x1={440}
+                              y1={yScaleD(pairedResults.ciLower)}
+                              x2={440}
+                              y2={yScaleD(pairedResults.ciUpper)}
+                              stroke="#524ba7"
+                              strokeWidth={3}
+                            />
+                            <line
+                              x1={425}
+                              y1={yScaleD(pairedResults.ciUpper)}
+                              x2={455}
+                              y2={yScaleD(pairedResults.ciUpper)}
+                              stroke="#524ba7"
+                              strokeWidth={2}
+                            />
+                            <line
+                              x1={425}
+                              y1={yScaleD(pairedResults.ciLower)}
+                              x2={455}
+                              y2={yScaleD(pairedResults.ciLower)}
+                              stroke="#524ba7"
+                              strokeWidth={2}
+                            />
+                            <circle
+                              cx={440}
+                              cy={yScaleD(pairedResults.meanDiff)}
+                              r={6}
+                              fill="#524ba7"
+                              stroke="#fff"
+                              strokeWidth={2}
+                            />
+
+                            <text
+                              x={465}
+                              y={yScaleD(pairedResults.meanDiff) + 4}
+                              fill="#524ba7"
+                              fontSize={10}
+                              fontWeight="bold"
+                            >
+                              ΔM = {fmt(pairedResults.meanDiff, 2)}
+                            </text>
+                            <text
+                              x={465}
+                              y={yScaleD(pairedResults.ciUpper) + 4}
+                              fill="var(--ink)"
+                              fontSize={9}
+                            >
+                              ВГ: {fmt(pairedResults.ciUpper, 2)}
+                            </text>
+                            <text
+                              x={465}
+                              y={yScaleD(pairedResults.ciLower) + 4}
+                              fill="var(--ink)"
+                              fontSize={9}
+                            >
+                              НГ: {fmt(pairedResults.ciLower, 2)}
+                            </text>
+                            <text x={440} y={202} textAnchor="middle" fill="var(--muted)" fontSize={10}>
+                              95% ДИ среднего изменения
+                            </text>
+                          </g>
+                        )}
+                      </svg>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Battle Table: Paired vs Mistaken Independent */}
+              <div className="battle-table-card">
+                <div className="battle-header">
+                  <span>БИТВА МОДЕЛЕЙ: ПАРНЫЙ КРИТЕРИЙ VS ОШИБОЧНЫЙ НЕЗАВИСИМЫЙ</span>
+                  <small>Выигрыш мощности за счёт контроля межиндивидуальной вариативности</small>
+                </div>
+
+                <div className="battle-table-wrapper">
+                  <table className="battle-table">
+                    <thead>
+                      <tr>
+                        <th>Модель анализа</th>
+                        <th>Статистика t</th>
+                        <th>df</th>
+                        <th>p-значение</th>
+                        <th>95% ДИ изменения</th>
+                        <th>Размер эффекта</th>
+                        <th>Статус надёжности</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="highlight-row">
+                        <td>
+                          <strong>Парный t-критерий</strong>
+                          <small>вычитает индивидуальные уровни участников</small>
+                        </td>
+                        <td>{pairedResults.isDegenerate ? "—" : `t = ${fmt(pairedResults.tVal, 2)}`}</td>
+                        <td>{pairedResults.df}</td>
+                        <td className="sig-cell">{fmtP(pairedResults.pVal)}</td>
+                        <td>
+                          {pairedResults.isDegenerate
+                            ? `[${fmt(pairedResults.meanDiff)}; ${fmt(pairedResults.meanDiff)}]`
+                            : `[${fmt(pairedResults.ciLower, 2)}; ${fmt(pairedResults.ciUpper, 2)}]`}
+                        </td>
+                        <td>{pairedResults.isDegenerate ? "—" : `d_z = ${fmt(pairedResults.cohenDz, 2)}`}</td>
+                        <td>
+                          {pairedResults.isDegenerate ? (
+                            <span className="badge badge-warning">Разброс равен 0</span>
+                          ) : (
+                            <span className="badge badge-recommended">Рекомендуемый (парный дизайн)</span>
+                          )}
+                        </td>
+                      </tr>
+                      <tr className="risky-row">
+                        <td>
+                          <strong>Ошибочный независимый t</strong>
+                          <small>если забыть, что это одни и те же люди</small>
+                        </td>
+                        <td>
+                          {pairedResults.independentContrast?.tIndep !== null
+                            ? `t = ${fmt(pairedResults.independentContrast?.tIndep, 2)}`
+                            : "—"}
+                        </td>
+                        <td>{pairedResults.independentContrast?.dfIndep ?? "—"}</td>
+                        <td>{fmtP(pairedResults.independentContrast?.pIndep)}</td>
+                        <td>—</td>
+                        <td>d_av = {fmt(pairedResults.cohenDav, 2)}</td>
+                        <td>
+                          <span className="badge badge-warning">
+                            {pairedResults.independentContrast
+                              ? `SE завышен на +${fmt(pairedResults.independentContrast.seReductionPct, 0)}%`
+                              : "Неприменимо"}
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Verdict note */}
+                <div
+                  className={`dynamic-verdict ${
+                    pairedResults.isDegenerate
+                      ? "alert-viol"
+                      : pairedResults.pVal !== null && pairedResults.pVal < 0.05
+                      ? "alert-ok"
+                      : "alert-viol"
+                  }`}
+                >
+                  <div className="verdict-icon">💡</div>
+                  <div className="verdict-text">
+                    <strong>
+                      {pairedResults.isDegenerate
+                        ? "Разброс разностей равен нулю (s_D = 0): все участники изменились на абсолютно одинаковую величину"
+                        : pairedResults.pVal !== null && pairedResults.pVal < 0.05
+                        ? `Обнаружен статистически значимый внутрииндивидуальный сдвиг (p ${fmtP(pairedResults.pVal)})`
+                        : "Нет статистически значимых оснований отвергать H₀ об отсутствии сдвига"}
+                    </strong>
+                    <p>
+                      {pairedResults.isDegenerate
+                        ? "В этой ситуации деление на стандартную ошибку SE_D = 0 математически неопределено. Классический t-критерий Стьюдента неприменим, так как стохастическая неопределенность разностей отсутствует."
+                        : `Парная корреляция между замерами r = ${fmt(pairedResults.r, 2)}. ` +
+                          (pairedResults.r !== null && pairedResults.r > 0
+                            ? `Положительная корреляция позволила устранить стабильные межиндивидуальные различия и снизить стандартную ошибку разностей на ${fmt(pairedResults.independentContrast?.seReductionPct, 0)}% по сравнению с независимым анализом!`
+                            : "При низкой или отрицательной корреляции парный дизайн теряет преимущество в мощности.")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Methodological Causality Warning Card */}
+              <div className="methodological-notes-card">
+                <div className="method-note-item">
+                  <strong>⚠️ Методологическое ограничение: дизайн «До / После» в одной группе не доказывает причинно-следственную связь</strong>
+                  <p>
+                    Статистическая значимость изменения в парном t-тесте констатирует наличие внутрииндивидуального сдвига,
+                    но <strong>не позволяет утверждать, что причиной изменения было именно ваше воздействие</strong> (тренинг, терапия, диета).
+                    Наблюдаемый эффект может объясняться альтернативными факторами:
+                  </p>
+                  <ul className="method-notes-list">
+                    <li>
+                      <strong>Регрессия к среднему (Regression to the mean):</strong> участники, отобранные по крайним высоким
+                      баллам тревожности/депрессии, при повторном замере статистически неизбежно демонстрируют более умеренные
+                      баллы даже без какого-либо лечения (Galton, 1886; Campbell &amp; Stanley, 1963).
+                    </li>
+                    <li>
+                      <strong>Эффект тестирования (Testing effect):</strong> повторное прохождение того же опросника или теста
+                      вызывает научение, привыкание или эффект социальной желательности.
+                    </li>
+                    <li>
+                      <strong>Спонтанная ремиссия и естественное созревание:</strong> многие психологические трудности
+                      сглаживаются со временем в силу адаптационных ресурсов психики.
+                    </li>
+                    <li>
+                      <strong>Плацебо и эффект Хоторна:</strong> факт включения в исследование и внимание психолога сами по себе
+                      улучшают эмоциональное состояние.
+                    </li>
+                  </ul>
+                  <p className="method-notes-conclusion">
+                    🔬 <em>Для доказательства каузальности необходим рандомизированный контролируемый эксперимент (РКИ / RCT) с отдельной
+                    контрольной группой (например, лист ожидания) и анализ межгруппового взаимодействия «Группа × Время» через смешанный ANOVA.</em>
+                  </p>
                 </div>
               </div>
             </div>

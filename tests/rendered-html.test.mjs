@@ -55,6 +55,7 @@ test("renders /sandbox SSR with verified p-value format", async () => {
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.ok(html.includes("p Ливиня = 0,005"), "Must render correctly formatted p-value: 'p Ливиня = 0,005'");
+  assert.ok(html.includes("Парные измерения «до / после»"), "Must render Paired Lab tab button");
   assert.doesNotMatch(html, /p Ливиня\s*=\s*=\s*0,005/, "Must not contain duplicate equals sign");
   assert.doesNotMatch(html, /p Ливиня\s*=\s*</, "Must not contain '= <'");
 });

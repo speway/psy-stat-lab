@@ -7637,3 +7637,128 @@ legend.segmented-legend,
     grid-template-columns: 1fr;
   }
 }
+/* ======================================================== */
+/* PAIRED SAMPLES LAB ("BEFORE / AFTER")                    */
+/* ======================================================== */
+
+.badge-simulated {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.paired-svg,
+.diff-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.paired-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: #f7f7fc;
+  border: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.paired-chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-bullet {
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.legend-bullet.decreased {
+  background-color: #2b6cb0;
+}
+
+.legend-bullet.increased {
+  background-color: #c53030;
+}
+
+.legend-bullet.mean-line {
+  background-color: #741b47;
+  height: 4px;
+}
+
+.spss-guide-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  border: 1px solid var(--wine);
+  background: var(--paper-2);
+  color: var(--wine);
+  transition: all 0.15s ease;
+}
+
+.spss-guide-btn:hover {
+  background: var(--wine);
+  color: #fff;
+}
+
+.methodological-notes-card {
+  padding: 20px 24px;
+  background: #fffdf5;
+  border: 1px solid #f6e05e;
+  border-left: 5px solid #d69e2e;
+  margin-top: 20px;
+}
+
+.method-note-item strong {
+  display: block;
+  font-size: 13px;
+  color: #744210;
+  margin-bottom: 8px;
+}
+
+.method-note-item p {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink);
+  margin: 6px 0;
+}
+
+.method-notes-list {
+  margin: 10px 0 14px 20px;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.method-notes-list li {
+  margin-bottom: 6px;
+}
+
+.method-notes-list li strong {
+  display: inline;
+  font-size: 11px;
+  color: #744210;
+}
+
+.method-notes-conclusion {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #ecc94b;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #744210;
+}

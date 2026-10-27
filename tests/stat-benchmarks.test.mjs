@@ -11,6 +11,8 @@ import {
   computeSampleStats,
   computeTwoSampleTests,
   generateSample,
+  generatePairedSample,
+  computePairedSampleTests,
   fmt,
   fmtP,
 } from "../app/stat-calc.js";
@@ -429,4 +431,82 @@ test("Static source verification: native radio markup, group associations, and a
     sandboxSrc.includes('handleDirectionKeyDown(e, false)'),
     "One-tailed radio must bind handleDirectionKeyDown"
   );
+});
+
+test("Paired samples t-test: analytical benchmarks, df, SE, p-value, and confidence interval", () => {
+  // Benchmark with known analytical data:
+  // 5 pairs: Before = [10, 12, 14, 16, 18], After = [14, 17, 19, 21, 24]
+  // Diff D = After - Before = [4, 5, 5, 5, 6]
+  // Sum D = 25, Mean D = 5.0
+  // Deviations: [-1, 0, 0, 0, 1], Sum sq dev = 2
+  // Variance s_D^2 = 2 / 4 = 0.5
+  // SD s_D = sqrt(0.5) = 0.70710678
+  // SE_D = s_D / sqrt(5) = sqrt(0.1) = 0.316227766
+  // t = 5.0 / 0.316227766 = 15.8113883
+  // df = 4
+  const testPairs = [
+    { id: 1, before: 10, after: 14, diff: 4 },
+    { id: 2, before: 12, after: 17, diff: 5 },
+    { id: 3, before: 14, after: 19, diff: 5 },
+    { id: 4, before: 16, after: 21, diff: 5 },
+    { id: 5, before: 18, after: 24, diff: 6 },
+  ];
+
+  const res = computePairedSampleTests(testPairs);
+  assert.equal(res.n, 5);
+  assert.equal(res.df, 4);
+  assert.equal(res.isDegenerate, false);
+  assert.ok(Math.abs(res.meanDiff - 5.0) < 1e-9, "Mean diff must equal 5.0");
+  assert.ok(Math.abs(res.sdDiff - Math.sqrt(0.5)) < 1e-6, "SD of diff must equal sqrt(0.5)");
+  assert.ok(Math.abs(res.seDiff - Math.sqrt(0.1)) < 1e-6, "SE of diff must equal sqrt(0.1)");
+  assert.ok(Math.abs(res.tVal - Math.sqrt(250)) < 1e-4, "t must equal sqrt(250) ~ 15.8114");
+  assert.ok(res.pVal < 0.0001, "p-value must be < 0.0001");
+
+  // Critical t for df=4, alpha=0.05 two-tailed is ~ 2.7764451
+  // Margin of error = 2.7764451 * 0.316227766 ~ 0.87799
+  // CI = [5.0 - 0.878, 5.0 + 0.878] = [4.122, 5.878]
+  assert.ok(Math.abs(res.ciLower - 4.122) < 0.02, "Expected CI lower ~ 4.122, got " + res.ciLower);
+  assert.ok(Math.abs(res.ciUpper - 5.878) < 0.02, "Expected CI upper ~ 5.878, got " + res.ciUpper);
+
+  // Cohen's d_z = meanDiff / sdDiff = 5.0 / 0.70710678 = 7.071
+  assert.ok(Math.abs(res.cohenDz - 7.071) < 0.01, "Expected Cohen's dz ~ 7.071, got " + res.cohenDz);
+});
+
+test("Paired samples degenerate case (zero variance): s_D = 0 produces explicit inapplicability", () => {
+  // All participants changed by exactly 3.0 points
+  const constPairs = [
+    { id: 1, before: 10, after: 13, diff: 3 },
+    { id: 2, before: 20, after: 23, diff: 3 },
+    { id: 3, before: 30, after: 33, diff: 3 },
+    { id: 4, before: 40, after: 43, diff: 3 },
+  ];
+
+  const res = computePairedSampleTests(constPairs);
+  assert.equal(res.isDegenerate, true, "Must flag isDegenerate = true");
+  assert.equal(res.tVal, null, "tVal must be null when SE = 0");
+  assert.equal(res.pVal, null, "pVal must be null when SE = 0");
+  assert.equal(res.sdDiff, 0, "sdDiff must equal 0");
+  assert.equal(res.seDiff, 0, "seDiff must equal 0");
+  assert.equal(res.ciLower, 3, "Lower CI matches constant diff");
+  assert.equal(res.ciUpper, 3, "Upper CI matches constant diff");
+});
+
+test("Paired samples generator and independent contrast: SE reduction via correlation", () => {
+  // When correlation r is high (e.g. 0.80), SE_paired is reduced by ~ 1 - sqrt(1 - r) = 1 - sqrt(0.2) ~ 55%
+  const sample = generatePairedSample({
+    n: 60,
+    mBase: 50,
+    meanDiff: -5,
+    sdBase: 10,
+    r: 0.80,
+    seed: 12345,
+  });
+
+  assert.equal(sample.length, 60);
+  const tests = computePairedSampleTests(sample);
+  assert.equal(tests.isDegenerate, false);
+  assert.ok(tests.r > 0.65, "Empirical correlation must be high, got " + tests.r);
+  assert.ok(tests.independentContrast !== null);
+  assert.ok(tests.independentContrast.seReductionPct > 40, "SE reduction must exceed 40% with r ~ 0.80");
+  assert.ok(tests.seDiff < tests.independentContrast.seIndep, "SE paired must be lower than SE independent");
 });

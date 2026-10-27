@@ -188,6 +188,19 @@ function runComponentTests() {
     });
     report('Programmatic click on one-tailed selects it', dirOne.checked === true);
 
+    // --- 3. SWITCH TO PAIRED SAMPLES LAB & VERIFY RENDERING ---
+    const pairedTabBtn = Array.from(document.querySelectorAll('.sandbox-tabs button')).find(b => b.textContent.includes('Парные'));
+    report('Paired tab button exists', !!pairedTabBtn);
+    flushSync(() => {
+      pairedTabBtn.click();
+    });
+    const spaghettiPlot = document.querySelector('.paired-svg');
+    report('Paired spaghetti plot rendered in browser', !!spaghettiPlot);
+    const simBadge = document.querySelector('.badge-simulated');
+    report('Simulated data badge rendered', !!simBadge);
+    const spssBtn = document.querySelector('.spss-guide-btn');
+    report('SPSS guide transition link rendered', !!spssBtn && spssBtn.getAttribute('href') === '/guides#paired-t');
+
     // Append successful results tag into DOM for --dump-dom extraction
     const resDiv = document.createElement('div');
     resDiv.id = 'stand-results';
@@ -263,7 +276,7 @@ runComponentTests();
     assert.ok(match, "Stand output must contain <div id='stand-results'>");
     const passed = match[1] === "true";
     assert.equal(passed, true, `Component stand failed: ${match[2]}`);
-    assert.match(match[2], /ALL TESTS PASSED: 22 assertions/);
+    assert.match(match[2], /ALL TESTS PASSED: 26 assertions/);
   } finally {
     // Clean up temporary files and isolated profile
     try {
