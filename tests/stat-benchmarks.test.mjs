@@ -13,6 +13,7 @@ import {
   generateSample,
   generatePairedSample,
   computePairedSampleTests,
+  simulateIntervalCoverage,
   fmt,
   fmtP,
 } from "../app/stat-calc.js";
@@ -487,8 +488,27 @@ test("Paired samples degenerate case (zero variance): s_D = 0 produces explicit 
   assert.equal(res.pVal, null, "pVal must be null when SE = 0");
   assert.equal(res.sdDiff, 0, "sdDiff must equal 0");
   assert.equal(res.seDiff, 0, "seDiff must equal 0");
-  assert.equal(res.ciLower, 3, "Lower CI matches constant diff");
-  assert.equal(res.ciUpper, 3, "Upper CI matches constant diff");
+  assert.equal(res.ciLower, null, "t interval is unavailable when variance is zero");
+  assert.equal(res.ciUpper, null);
+});
+
+test("paired versus independent SE comparison keeps direction and names its base", () => {
+  for (const r of [-0.5, 0.7]) {
+    const res = computePairedSampleTests(generatePairedSample({ n: 30, r, seed: 77 }));
+    const other = res.independentContrast;
+    const expected = (other.seIndep / res.seDiff - 1) * 100;
+    assert.ok(Math.abs(other.relativeToPairedPct - expected) < 1e-9);
+    assert.equal(Math.sign(other.relativeToPairedPct), Math.sign(res.r));
+  }
+});
+
+test("coverage simulation is reproducible and counts intervals that contain the true mean", () => {
+  const options = { n: 20, mean: 50, sd: 10, confidence: 0.95, count: 40, seed: 17 };
+  const result = simulateIntervalCoverage(options);
+  assert.deepEqual(result, simulateIntervalCoverage(options));
+  assert.equal(result.intervals.length, 40);
+  assert.equal(result.coveredCount, result.intervals.filter(x => x.lower <= 50 && x.upper >= 50).length);
+  for (const x of result.intervals) assert.ok(x.lower < x.mean && x.mean < x.upper);
 });
 
 test("Paired samples generator and independent contrast: SE reduction via correlation", () => {

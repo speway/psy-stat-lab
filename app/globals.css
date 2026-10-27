@@ -5637,7 +5637,9 @@ input:focus-visible {
     grid-column: 1 / -1;
     grid-row: 2;
     display: flex;
-    width: calc(100vw - 56px);
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     gap: 28px;
     overflow-x: auto;
     scrollbar-width: none;
@@ -5667,7 +5669,9 @@ input:focus-visible {
   }
 
   .site-header nav {
-    width: calc(100vw - 36px);
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     gap: 22px;
   }
 
@@ -5957,7 +5961,10 @@ canvas {
     .cluster-head,
     .cluster-workbench,
     .frontier-grid,
-    .output-workbench
+    .output-workbench,
+    .sandbox-grid,
+    .paired-sample-grid,
+    .spss-guide-workbench
   ) > * {
     min-width: 0;
   }
@@ -5971,7 +5978,7 @@ canvas {
 
   .brand {
     min-width: 0;
-    max-width: calc(100vw - 88px);
+    max-width: 100%;
   }
 
   .brand > div {
@@ -5992,7 +5999,9 @@ canvas {
   }
 
   .site-header nav {
-    width: calc(100vw - max(var(--mobile-gutter), env(safe-area-inset-left)) - max(var(--mobile-gutter), env(safe-area-inset-right)));
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     gap: 20px;
     overscroll-behavior-inline: contain;
     scroll-snap-type: x proximity;
@@ -6035,6 +6044,14 @@ canvas {
   .section-page-hero {
     padding-top: 62px;
     padding-bottom: 58px;
+  }
+
+  .stat-sandbox-root,
+  .spss-guides-root {
+    padding-right: max(var(--mobile-gutter), env(safe-area-inset-right));
+    padding-left: max(var(--mobile-gutter), env(safe-area-inset-left));
+    padding-top: 38px;
+    padding-bottom: 54px;
   }
 
   .hero-frame {
@@ -6081,7 +6098,10 @@ canvas {
     .cluster-head,
     .cluster-workbench,
     .frontier-grid,
-    .output-workbench
+    .output-workbench,
+    .sandbox-grid,
+    .paired-sample-grid,
+    .spss-guide-workbench
   ) {
     grid-template-columns: minmax(0, 1fr) !important;
     width: 100%;
@@ -6531,7 +6551,7 @@ canvas {
 }
 
 .presets-label {
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 850;
   letter-spacing: 0.12em;
   color: var(--wine-2);
@@ -6608,7 +6628,7 @@ canvas {
 }
 
 .group-badge {
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 850;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -6931,7 +6951,7 @@ legend.segmented-legend,
 .battle-table td small {
   display: block;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 10px;
   margin-top: 2px;
 }
 
@@ -6943,7 +6963,7 @@ legend.segmented-legend,
 .badge {
   display: inline-block;
   padding: 4px 8px;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
   border-radius: 2px;
@@ -7233,6 +7253,7 @@ legend.segmented-legend,
 .items-table-scroll {
   max-height: 380px;
   overflow-y: auto;
+  overflow-x: auto;
   border: 1px solid var(--line);
   margin-top: 12px;
 }
@@ -7373,7 +7394,7 @@ legend.segmented-legend,
 
 .guide-alert-box span {
   display: block;
-  font-size: 8px;
+  font-size: 10.5px;
   font-weight: 850;
   letter-spacing: 0.1em;
   color: var(--wine);
@@ -7382,14 +7403,14 @@ legend.segmented-legend,
 
 .guide-alert-box p {
   margin: 0;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
   line-height: 1.6;
 }
 
 .guide-subhead {
   margin: 0 0 12px;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 850;
   letter-spacing: 0.1em;
   color: var(--wine-2);
@@ -7433,7 +7454,7 @@ legend.segmented-legend,
   padding: 10px 14px;
   background: var(--paper-2);
   border: 1px solid var(--line);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -7468,7 +7489,7 @@ legend.segmented-legend,
   background: #f0f0f8;
   border: 1px solid #dcdce8;
   padding: 8px 10px;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 800;
   color: var(--ink);
   text-align: center;
@@ -7479,6 +7500,7 @@ legend.segmented-legend,
   padding: 10px;
   text-align: center;
   white-space: pre-line;
+  font-size: 11.5px;
 }
 
 .highlighted-spss-cell {
@@ -7489,7 +7511,7 @@ legend.segmented-legend,
 
 .cell-hint-badge {
   display: block;
-  font-size: 7px;
+  font-size: 9.5px;
   color: #b76e00;
   font-weight: bold;
   margin-top: 4px;
@@ -7508,7 +7530,7 @@ legend.segmented-legend,
   border: 1px solid var(--line);
   background: var(--paper-2);
   color: var(--ink);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
   cursor: pointer;
@@ -7548,7 +7570,7 @@ legend.segmented-legend,
 
 .alt-box span {
   display: block;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 850;
   letter-spacing: 0.1em;
   color: var(--wine-2);
@@ -7557,7 +7579,7 @@ legend.segmented-legend,
 
 .alt-box p {
   margin: 0;
-  font-size: 9px;
+  font-size: 11.5px;
   color: var(--muted);
   line-height: 1.5;
 }
@@ -7571,7 +7593,7 @@ legend.segmented-legend,
 
 .alt-box code {
   display: block;
-  font-size: 9px;
+  font-size: 11px;
   white-space: pre-wrap;
   color: var(--wine);
 }
@@ -7617,8 +7639,22 @@ legend.segmented-legend,
 }
 
 @media (max-width: 900px) {
-  .sandbox-grid {
-    grid-template-columns: 1fr;
+  .stat-sandbox-root,
+  .spss-guides-root {
+    padding: 36px 18px 48px;
+  }
+  .sandbox-grid,
+  .paired-sample-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .controls-column,
+  .visuals-column {
+    padding: 22px 18px;
+  }
+  .sample-control-card,
+  .visual-card,
+  .battle-table-card {
+    padding: 18px 14px;
   }
   .power-metrics-grid,
   .coefficients-row,
@@ -7630,11 +7666,38 @@ legend.segmented-legend,
   }
 }
 @media (max-width: 520px) {
-  .power-metrics-grid {
+  .stat-sandbox-root,
+  .spss-guides-root {
+    padding: 24px max(14px, env(safe-area-inset-right)) 36px max(14px, env(safe-area-inset-left));
+  }
+  .controls-column,
+  .visuals-column {
+    padding: 16px 12px;
+  }
+  .sample-control-card,
+  .visual-card,
+  .battle-table-card {
+    padding: 14px 10px;
+  }
+  .power-metrics-grid,
+  .coefficients-row,
+  .norms-chips-grid,
+  .alpha-display-strip {
     grid-template-columns: 1fr;
   }
   .rec-stats {
     grid-template-columns: 1fr;
+  }
+  .sandbox-tabs button {
+    padding: 0 12px;
+    font-size: 9.5px;
+  }
+  .presets-bar {
+    padding: 12px 10px;
+  }
+  .preset-btn {
+    padding: 6px 10px;
+    font-size: 9.5px;
   }
 }
 /* ======================================================== */
@@ -7642,6 +7705,7 @@ legend.segmented-legend,
 /* ======================================================== */
 
 .badge-simulated {
+  font-size: 10px;
   background: #fef3c7;
   color: #92400e;
   border: 1px solid #fde68a;
@@ -7698,7 +7762,7 @@ legend.segmented-legend,
   align-items: center;
   gap: 6px;
   text-decoration: none;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 850;
   letter-spacing: 0.08em;
   text-transform: uppercase;

@@ -750,9 +750,9 @@ export function computePairedSampleTests(pairs) {
       tVal: null,
       df: n - 1,
       pVal: null,
-      ciLower: meanDiff,
-      ciUpper: meanDiff,
-      marginOfError: 0,
+      ciLower: null,
+      ciUpper: null,
+      marginOfError: null,
       cohenDz: null,
       cohenDav: (sdBefore + sdAfter > 0) ? (meanDiff / ((sdBefore + sdAfter) / 2)) : null,
       r,
@@ -778,7 +778,8 @@ export function computePairedSampleTests(pairs) {
   const dfIndep = 2 * n - 2;
   const tIndep = seIndep > 0 ? (meanDiff / seIndep) : null;
   const pIndep = tIndep !== null ? studentTPValue(tIndep, dfIndep) : null;
-  const seReductionPct = seIndep > 0 ? Math.max(0, (1 - (seDiff / seIndep)) * 100) : 0;
+  const seReductionPct = seIndep > 0 ? (1 - (seDiff / seIndep)) * 100 : 0;
+  const relativeToPairedPct = seDiff > 0 ? (seIndep / seDiff - 1) * 100 : null;
 
   return {
     n,
@@ -804,7 +805,86 @@ export function computePairedSampleTests(pairs) {
       dfIndep,
       pIndep,
       seIndep,
-      seReductionPct
+      seReductionPct,
+      relativeToPairedPct
     }
+  };
+}
+
+/**
+ * Simulates repeated sampling from a normal population and evaluates confidence interval coverage.
+ * @param {Object} [options]
+ * @param {number} [options.n=20] - Sample size per interval
+ * @param {number} [options.mean=50] - True population mean
+ * @param {number} [options.sd=10] - True population standard deviation
+ * @param {number} [options.confidence=0.95] - Confidence level (e.g. 0.95 for 95% CI)
+ * @param {number} [options.count=40] - Number of intervals to simulate
+ * @param {number} [options.seed=42] - PRNG seed
+ * @returns {{
+ *   intervals: Array<{ id: number, mean: number, lower: number, upper: number, marginOfError: number, containsTrueMean: boolean }>,
+ *   coveredCount: number,
+ *   coverageRate: number,
+ *   targetConfidence: number
+ * }}
+ */
+export function simulateIntervalCoverage({
+  n = 20,
+  mean = 50,
+  sd = 10,
+  confidence = 0.95,
+  count = 40,
+  seed = 42
+} = {}) {
+  const rand = seededRandom(seed);
+  const alpha = 1 - confidence;
+  const df = Math.max(1, n - 1);
+  const tCrit = studentTQuantile(alpha, df);
+
+  const intervals = [];
+  let coveredCount = 0;
+
+  for (let s = 0; s < count; s++) {
+    let sum = 0;
+    const vals = [];
+    for (let i = 0; i < n; i++) {
+      const u1 = Math.max(rand(), 0.00001);
+      const u2 = rand();
+      const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+      const val = mean + z * sd;
+      vals.push(val);
+      sum += val;
+    }
+    const sampleMean = sum / n;
+    let sumSq = 0;
+    for (let i = 0; i < n; i++) {
+      const diff = vals[i] - sampleMean;
+      sumSq += diff * diff;
+    }
+    const sampleSd = Math.sqrt(sumSq / df);
+    const se = sampleSd / Math.sqrt(n);
+    const marginOfError = tCrit * se;
+    const lower = sampleMean - marginOfError;
+    const upper = sampleMean + marginOfError;
+    const containsTrueMean = lower <= mean && upper >= mean;
+
+    intervals.push({
+      id: s + 1,
+      mean: sampleMean,
+      lower,
+      upper,
+      marginOfError,
+      containsTrueMean
+    });
+
+    if (containsTrueMean) {
+      coveredCount++;
+    }
+  }
+
+  return {
+    intervals,
+    coveredCount,
+    coverageRate: count > 0 ? coveredCount / count : 0,
+    targetConfidence: confidence
   };
 }
