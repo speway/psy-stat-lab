@@ -6657,6 +6657,84 @@ canvas {
   margin-top: 3px;
 }
 
+fieldset.segmented-control,
+.segmented-control {
+  border: 0;
+  padding: 0;
+  margin: 4px 0 0 0;
+  min-inline-size: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+legend.segmented-legend,
+.segmented-control > span {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+  padding: 0;
+  margin: 0;
+  float: left;
+  width: 100%;
+}
+
+.segmented-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.segmented-buttons button,
+.segmented-buttons label.segmented-label {
+  flex: 1;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  color: var(--wine);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 4px 6px;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.segmented-buttons button:hover,
+.segmented-buttons label.segmented-label:hover {
+  background: rgba(82, 75, 167, 0.08);
+}
+
+.segmented-buttons button.active,
+.segmented-buttons label.segmented-label.active {
+  background: var(--wine);
+  color: #fff;
+  border-color: var(--wine);
+}
+
+.segmented-buttons label.segmented-label:focus-within {
+  outline: 2px solid var(--wine);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
 .card-actions {
   display: flex;
   flex-direction: column;
@@ -6958,9 +7036,9 @@ canvas {
 
 .metric-box span {
   display: block;
-  font-size: 7px;
-  font-weight: 850;
-  letter-spacing: 0.1em;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   color: var(--muted);
   text-transform: uppercase;
 }
@@ -6978,23 +7056,23 @@ canvas {
 
 .metric-box small {
   display: block;
-  font-size: 8px;
+  font-size: 11px;
   color: var(--muted);
-  line-height: 1.35;
+  line-height: 1.4;
 }
 
 .n-recommendation-box {
   margin-top: 20px;
-  padding: 16px;
+  padding: 16px 20px;
   background: #f2f2fa;
   border: 1px solid var(--line);
 }
 
 .rec-title {
   display: block;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 850;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   color: var(--wine-2);
   margin-bottom: 12px;
 }
@@ -7002,26 +7080,72 @@ canvas {
 .rec-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 16px;
 }
 
 .rec-stats strong {
   display: block;
   font-family: var(--font-pt-serif), serif;
-  font-size: 16px;
+  font-size: 17px;
   color: var(--wine);
 }
 
 .rec-stats small {
   display: block;
-  font-size: 8px;
+  font-size: 11px;
   color: var(--muted);
+  line-height: 1.4;
+}
+
+.rec-stats-zero {
+  padding: 4px 0;
+}
+
+.rec-stats-zero strong {
+  display: block;
+  font-family: var(--font-pt-serif), serif;
+  font-size: 14px;
+  color: var(--wine);
+  margin-bottom: 6px;
+}
+
+.rec-stats-zero small {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.methodological-notes-card {
+  margin-top: 16px;
+  padding: 18px 22px;
+  background: #fbfbff;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--wine-2);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.method-note-item strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--wine);
+  margin-bottom: 5px;
+}
+
+.method-note-item p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
 }
 
 .psychology-trap-card,
 .lesson-box {
   margin-top: 16px;
-  padding: 16px 20px;
+  padding: 18px 22px;
   background: #f5f4fb;
   border-left: 3px solid var(--wine-2);
 }
@@ -7029,7 +7153,7 @@ canvas {
 .psychology-trap-card strong,
 .lesson-box strong {
   display: block;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--wine);
   margin-bottom: 6px;
 }
@@ -7038,7 +7162,7 @@ canvas {
 .lesson-box p {
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -7502,6 +7626,14 @@ canvas {
     grid-template-columns: 1fr 1fr;
   }
   .alt-software-row {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 520px) {
+  .power-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  .rec-stats {
     grid-template-columns: 1fr;
   }
 }

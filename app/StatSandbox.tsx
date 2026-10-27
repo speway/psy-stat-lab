@@ -2,188 +2,21 @@
 
 import { useState, useMemo, useId } from "react";
 import type { CSSProperties } from "react";
+import {
+  seededRandom,
+  normalCdf,
+  normalPdf,
+  studentTPValue,
+  regularizedBeta,
+  computePowerMetrics,
+  computeSampleStats,
+  computeTwoSampleTests,
+  generateSample,
+  fmt,
+  fmtP,
+} from "./stat-calc";
 
-// --- Mathematical helpers ---
-
-function seededRandom(seed: number) {
-  let state = seed >>> 0;
-  return () => {
-    state = (state * 1664525 + 1013904223) >>> 0;
-    return state / 4294967296;
-  };
-}
-
-function normalCdf(z: number): number {
-  if (z < -8) return 0;
-  if (z > 8) return 1;
-  const sign = z < 0 ? -1 : 1;
-  const x = Math.abs(z) / Math.sqrt(2);
-  const t = 1 / (1 + 0.3275911 * x);
-  const erf =
-    sign *
-    (1 -
-      ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) *
-        t +
-        0.254829592) *
-        t *
-        Math.exp(-x * x));
-  return 0.5 * (1 + erf);
-}
-
-function normalPdf(x: number, mean = 0, sd = 1): number {
-  const z = (x - mean) / sd;
-  return (1 / (sd * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * z * z);
-}
-
-// Log-gamma function
-function logGamma(value: number): number {
-  const coefficients = [
-    676.5203681218851, -1259.1392167224028, 771.3234287776531,
-    -176.6150291621406, 12.507343278686905, -0.13857109526572012,
-    9.984369578019572e-6, 1.5056327351493116e-7,
-  ];
-  if (value < 0.5) {
-    return Math.log(Math.PI) - Math.log(Math.sin(Math.PI * value)) - logGamma(1 - value);
-  }
-  let x = 0.9999999999998099;
-  const shifted = value - 1;
-  for (let i = 0; i < coefficients.length; i++) {
-    x += coefficients[i] / (shifted + i + 1);
-  }
-  const t = shifted + coefficients.length - 0.5;
-  return 0.5 * Math.log(2 * Math.PI) + (shifted + 0.5) * Math.log(t) - t + Math.log(x);
-}
-
-// Regularized incomplete beta function via continued fraction
-function betaContinuedFraction(a: number, b: number, x: number): number {
-  const maxIterations = 120;
-  const epsilon = 3e-10;
-  const tiny = 1e-30;
-  const qab = a + b;
-  const qap = a + 1;
-  const qam = a - 1;
-  let c = 1;
-  let d = 1 - (qab * x) / qap;
-  if (Math.abs(d) < tiny) d = tiny;
-  d = 1 / d;
-  let h = d;
-  for (let m = 1; m <= maxIterations; m++) {
-    const m2 = 2 * m;
-    let aa = (m * (b - m) * x) / ((qam + m2) * (a + m2));
-    d = 1 + aa * d;
-    if (Math.abs(d) < tiny) d = tiny;
-    c = 1 + aa / c;
-    if (Math.abs(c) < tiny) c = tiny;
-    d = 1 / d;
-    h *= d * c;
-    aa = (-(a + m) * (qab + m) * x) / ((a + m2) * (qap + m2));
-    d = 1 + aa * d;
-    if (Math.abs(d) < tiny) d = tiny;
-    c = 1 + aa / c;
-    if (Math.abs(c) < tiny) c = tiny;
-    d = 1 / d;
-    const delta = d * c;
-    h *= delta;
-    if (Math.abs(delta - 1) < epsilon) break;
-  }
-  return h;
-}
-
-function regularizedBeta(x: number, a: number, b: number): number {
-  if (x <= 0) return 0;
-  if (x >= 1) return 1;
-  const front = Math.exp(
-    logGamma(a + b) - logGamma(a) - logGamma(b) + a * Math.log(x) + b * Math.log(1 - x)
-  );
-  if (x < (a + 1) / (a + b + 2)) {
-    return (front * betaContinuedFraction(a, b, x)) / a;
-  }
-  return 1 - (front * betaContinuedFraction(b, a, 1 - x)) / b;
-}
-
-// Student's t two-tailed p-value
-function studentTPValue(t: number, df: number): number {
-  if (!Number.isFinite(t) || !Number.isFinite(df) || df <= 0) return 1;
-  const absT = Math.abs(t);
-  const x = df / (df + absT * absT);
-  return regularizedBeta(x, df / 2, 0.5);
-}
-
-// Generate sample with controllable skewness and outliers
-function generateSample(
-  n: number,
-  mean: number,
-  sd: number,
-  skew: number,
-  outliers: number,
-  seed: number
-): number[] {
-  const rand = seededRandom(seed);
-  const values: number[] = [];
-
-  for (let i = 0; i < n; i++) {
-    const u1 = Math.max(rand(), 0.00001);
-    const u2 = rand();
-    const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-    // Skew polynomial transform
-    const shaped = z + skew * ((z * z - 1) / 3.0);
-    values.push(mean + shaped * sd);
-  }
-
-  // Inject outliers
-  for (let i = 0; i < outliers; i++) {
-    const targetIdx = Math.floor(rand() * values.length);
-    const sign = i % 2 === 0 ? 1 : -1;
-    values[targetIdx] = mean + sign * sd * (3.4 + rand() * 1.6);
-  }
-
-  return values;
-}
-
-function calcStats(data: number[]) {
-  const n = data.length;
-  if (n === 0) return { mean: 0, median: 0, sd: 0, variance: 0, min: 0, max: 0, q1: 0, q3: 0, iqr: 0, skewness: 0 };
-  const sorted = [...data].sort((a, b) => a - b);
-  const mean = data.reduce((s, v) => s + v, 0) / n;
-  const variance = data.reduce((s, v) => s + (v - mean) ** 2, 0) / (n - 1 || 1);
-  const sd = Math.sqrt(variance);
-
-  const mid = Math.floor(n / 2);
-  const median = n % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
-
-  const q1 = sorted[Math.floor(n * 0.25)];
-  const q3 = sorted[Math.floor(n * 0.75)];
-  const iqr = q3 - q1;
-
-  // Pearson skewness approximation (M - Med)/SD * 3 or sample moment
-  const m3 = data.reduce((s, v) => s + (v - mean) ** 3, 0) / n;
-  const skewness = sd > 0 ? m3 / (sd ** 3) : 0;
-
-  return {
-    mean,
-    median,
-    sd,
-    variance,
-    min: sorted[0],
-    max: sorted[sorted.length - 1],
-    q1,
-    q3,
-    iqr,
-    skewness,
-  };
-}
-
-// Format number with comma
-function fmt(val: number, digits = 2): string {
-  if (!Number.isFinite(val)) return "—";
-  return val.toFixed(digits).replace(".", ",");
-}
-
-function fmtP(p: number): string {
-  if (!Number.isFinite(p)) return "—";
-  if (p < 0.001) return "< 0,001";
-  return `= ${fmt(p, 3)}`;
-}
+const calcStats = computeSampleStats;
 
 // Preset psychological scenarios for dual sample testing
 interface ScenarioPreset {
@@ -270,8 +103,12 @@ const scenarioPresets: ScenarioPreset[] = [
   },
 ];
 
-export default function StatSandbox() {
-  const [activeTab, setActiveTab] = useState<"dual" | "power" | "correlation" | "psychometrics">("dual");
+export default function StatSandbox({
+  initialTab = "dual",
+}: {
+  initialTab?: "dual" | "power" | "correlation" | "psychometrics";
+} = {}) {
+  const [activeTab, setActiveTab] = useState<"dual" | "power" | "correlation" | "psychometrics">(initialTab);
 
   // --- TAB 1: DUAL SAMPLE STATE ---
   const [n1, setN1] = useState(35);
@@ -321,88 +158,8 @@ export default function StatSandbox() {
 
   // Comparative tests
   const testResults = useMemo(() => {
-    const meanDiff = stats1.mean - stats2.mean;
-
-    // Student's t
-    const pooledVariance =
-      ((n1 - 1) * stats1.variance + (n2 - 1) * stats2.variance) / (n1 + n2 - 2);
-    const seStudent = Math.sqrt(pooledVariance * (1 / n1 + 1 / n2));
-    const tStudent = meanDiff / (seStudent || 1e-10);
-    const dfStudent = n1 + n2 - 2;
-    const pStudent = studentTPValue(tStudent, dfStudent);
-    const cohenD = meanDiff / (Math.sqrt(pooledVariance) || 1e-10);
-
-    // Welch's t
-    const v1 = stats1.variance / n1;
-    const v2 = stats2.variance / n2;
-    const seWelch = Math.sqrt(v1 + v2);
-    const tWelch = meanDiff / (seWelch || 1e-10);
-    const dfWelch = (v1 + v2) ** 2 / (v1 ** 2 / (n1 - 1) + v2 ** 2 / (n2 - 1) || 1);
-    const pWelch = studentTPValue(tWelch, dfWelch);
-    const hedgesG = cohenD * (1 - 3 / (4 * (n1 + n2) - 9));
-
-    // Mann-Whitney U
-    const combined = [
-      ...sample1.map((v) => ({ val: v, grp: 1 })),
-      ...sample2.map((v) => ({ val: v, grp: 2 })),
-    ].sort((a, b) => a.val - b.val);
-
-    // Assign ranks with tie handling
-    let rankSum1 = 0;
-    let i = 0;
-    while (i < combined.length) {
-      let j = i;
-      while (j < combined.length && combined[j].val === combined[i].val) j++;
-      const avgRank = (i + 1 + j) / 2;
-      for (let k = i; k < j; k++) {
-        if (combined[k].grp === 1) rankSum1 += avgRank;
-      }
-      i = j;
-    }
-    const u1 = rankSum1 - (n1 * (n1 + 1)) / 2;
-    const u2 = n1 * n2 - u1;
-    const uVal = Math.min(u1, u2);
-    const muU = (n1 * n2) / 2;
-    const sigmaU = Math.sqrt((n1 * n2 * (n1 + n2 + 1)) / 12);
-    const zU = (uVal - muU + 0.5) / (sigmaU || 1);
-    const pU = 2 * normalCdf(-Math.abs(zU));
-    const rankBiserial = 1 - (2 * uVal) / (n1 * n2);
-
-    // Levene test approximation on absolute deviations from mean
-    const dev1 = sample1.map((v) => Math.abs(v - stats1.mean));
-    const dev2 = sample2.map((v) => Math.abs(v - stats2.mean));
-    const meanDev1 = dev1.reduce((s, v) => s + v, 0) / n1;
-    const meanDev2 = dev2.reduce((s, v) => s + v, 0) / n2;
-    const grandMeanDev = (dev1.reduce((s, v) => s + v, 0) + dev2.reduce((s, v) => s + v, 0)) / (n1 + n2);
-    const ssBetweenDev = n1 * (meanDev1 - grandMeanDev) ** 2 + n2 * (meanDev2 - grandMeanDev) ** 2;
-    const ssWithinDev =
-      dev1.reduce((s, v) => s + (v - meanDev1) ** 2, 0) +
-      dev2.reduce((s, v) => s + (v - meanDev2) ** 2, 0);
-    const fLevene = (ssBetweenDev / 1) / (ssWithinDev / (n1 + n2 - 2) || 1);
-    const pLevene = regularizedBeta((n1 + n2 - 2) / (n1 + n2 - 2 + fLevene), (n1 + n2 - 2) / 2, 0.5);
-
-    // Ratio of variances
-    const varRatio = Math.max(stats1.variance, stats2.variance) / (Math.min(stats1.variance, stats2.variance) || 1e-5);
-
-    return {
-      meanDiff,
-      tStudent,
-      dfStudent,
-      pStudent,
-      cohenD,
-      tWelch,
-      dfWelch,
-      pWelch,
-      hedgesG,
-      uVal,
-      zU,
-      pU,
-      rankBiserial,
-      fLevene,
-      pLevene,
-      varRatio,
-    };
-  }, [sample1, sample2, stats1, stats2, n1, n2]);
+    return computeTwoSampleTests(sample1, sample2);
+  }, [sample1, sample2]);
 
   // Export CSV
   const handleExportCsv = () => {
@@ -456,46 +213,40 @@ NPAR TESTS
   const [isTwoTailed, setIsTwoTailed] = useState(true);
 
   const powerMetrics = useMemo(() => {
-    const d = cohenDInput;
-    const n = powerN;
-    const zCrit = isTwoTailed
-      ? powerAlpha === 0.001
-        ? 3.291
-        : powerAlpha === 0.01
-        ? 2.576
-        : 1.96
-      : powerAlpha === 0.001
-      ? 3.09
-      : powerAlpha === 0.01
-      ? 2.326
-      : 1.645;
-
-    const delta = d * Math.sqrt(n / 2);
-    const power = isTwoTailed
-      ? normalCdf(delta - zCrit) + normalCdf(-delta - zCrit)
-      : normalCdf(delta - zCrit);
-
-    const u3 = normalCdf(d) * 100;
-    const overlap = 2 * normalCdf(-d / 2) * 100;
-    const cles = normalCdf(d / Math.sqrt(2)) * 100;
-    const nnt = d > 0.01 ? 1 / (2 * normalCdf(d / Math.sqrt(2)) - 1) : Infinity;
-
-    // Sample size for 80% power at alpha=0.05
-    const zBeta80 = 0.8416;
-    const n80 = Math.ceil(2 * ((zCrit + zBeta80) / (d || 0.05)) ** 2);
-    const zBeta90 = 1.2816;
-    const n90 = Math.ceil(2 * ((zCrit + zBeta90) / (d || 0.05)) ** 2);
-
-    return {
-      power: Math.max(0.01, Math.min(0.999, power)),
-      u3,
-      overlap,
-      cles,
-      nnt,
-      n80,
-      n90,
-    };
+    return computePowerMetrics({
+      d: cohenDInput,
+      n: powerN,
+      alpha: powerAlpha,
+      isTwoTailed,
+    });
   }, [cohenDInput, powerN, powerAlpha, isTwoTailed]);
+
+  const handleAlphaKeyDown = (e: React.KeyboardEvent, currentVal: number) => {
+    const alphas = [0.05, 0.01, 0.001];
+    const idx = alphas.indexOf(currentVal);
+    if (idx === -1) return;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      const nextVal = alphas[(idx + 1) % alphas.length];
+      setPowerAlpha(nextVal);
+      document.getElementById(`power-alpha-${nextVal}`)?.focus();
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const prevVal = alphas[(idx - 1 + alphas.length) % alphas.length];
+      setPowerAlpha(prevVal);
+      document.getElementById(`power-alpha-${prevVal}`)?.focus();
+    }
+  };
+
+  const handleDirectionKeyDown = (e: React.KeyboardEvent, currentIsTwoTailed: boolean) => {
+    if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const nextState = !currentIsTwoTailed;
+      setIsTwoTailed(nextState);
+      const targetId = nextState ? "power-direction-two-tailed" : "power-direction-one-tailed";
+      document.getElementById(targetId)?.focus();
+    }
+  };
 
   // --- TAB 3: CORRELATION & OUTLIER LAB STATE ---
   const [trueR, setTrueR] = useState(0.65);
@@ -1120,22 +871,24 @@ NPAR TESTS
                     </thead>
                     <tbody>
                       {/* Student's t */}
-                      <tr className={testResults.varRatio > 2.5 || outliers1 > 0 || outliers2 > 0 ? "risky-row" : "safe-row"}>
+                      <tr className={testResults.isDegenerate || (testResults.varRatio !== null && testResults.varRatio > 2.5) || outliers1 > 0 || outliers2 > 0 ? "risky-row" : "safe-row"}>
                         <td>
                           <strong>t Стьюдента</strong>
                           <small>предполагает σ₁² = σ₂² и нормальность</small>
                         </td>
-                        <td>t = {fmt(testResults.tStudent)}</td>
+                        <td>t = {testResults.isDegenerate ? "—" : fmt(testResults.tStudent)}</td>
                         <td>{testResults.dfStudent}</td>
-                        <td className={testResults.pStudent < 0.05 ? "sig-cell" : ""}>
-                          {fmtP(testResults.pStudent)}
+                        <td className={testResults.pStudent !== null && testResults.pStudent < 0.05 ? "sig-cell" : ""}>
+                          {testResults.isDegenerate ? "—" : fmtP(testResults.pStudent)}
                         </td>
-                        <td>Cohen’s d = {fmt(testResults.cohenD)}</td>
+                        <td>Cohen’s d = {testResults.isDegenerate ? "—" : fmt(testResults.cohenD)}</td>
                         <td>
-                          {testResults.varRatio > 2.5 || outliers1 + outliers2 > 1 ? (
-                            <span className="badge badge-warning">⚠ Риск ложного вывода</span>
+                          {testResults.isDegenerate ? (
+                            <span className="badge badge-warning">Выборка константна (s² = 0)</span>
+                          ) : (testResults.varRatio !== null && testResults.varRatio > 2.5) || outliers1 + outliers2 > 1 ? (
+                            <span className="badge badge-warning">Выраженная разница s² / выбросы</span>
                           ) : (
-                            <span className="badge badge-ok">✓ Корректен</span>
+                            <span className="badge badge-ok">Умеренная разница s²</span>
                           )}
                         </td>
                       </tr>
@@ -1146,14 +899,18 @@ NPAR TESTS
                           <strong>t Уэлча (Welch’s t)</strong>
                           <small>робастен к неравенству дисперсий</small>
                         </td>
-                        <td>tᵂ = {fmt(testResults.tWelch)}</td>
-                        <td>{fmt(testResults.dfWelch, 1)}</td>
-                        <td className={testResults.pWelch < 0.05 ? "sig-cell" : ""}>
-                          {fmtP(testResults.pWelch)}
+                        <td>tᵂ = {testResults.isDegenerate ? "—" : fmt(testResults.tWelch)}</td>
+                        <td>{testResults.isDegenerate ? "—" : fmt(testResults.dfWelch, 1)}</td>
+                        <td className={testResults.pWelch !== null && testResults.pWelch < 0.05 ? "sig-cell" : ""}>
+                          {testResults.isDegenerate ? "—" : fmtP(testResults.pWelch)}
                         </td>
-                        <td>Hedges’ g = {fmt(testResults.hedgesG)}</td>
+                        <td>Hedges’ g = {testResults.isDegenerate ? "—" : fmt(testResults.hedgesG)}</td>
                         <td>
-                          <span className="badge badge-recommended">★ Золотой стандарт APA</span>
+                          {testResults.isDegenerate ? (
+                            <span className="badge badge-warning">Не применимо (s² = 0)</span>
+                          ) : (
+                            <span className="badge badge-recommended">Робастен к σ₁² ≠ σ₂² (Delacre et al., 2017)</span>
+                          )}
                         </td>
                       </tr>
 
@@ -1163,7 +920,7 @@ NPAR TESTS
                           <strong>U Манна — Уитни</strong>
                           <small>непараметрический ранговый критерий</small>
                         </td>
-                        <td>U = {fmt(testResults.uVal, 0)} (Z = {fmt(testResults.zU)})</td>
+                        <td>U = {fmt(testResults.uVal, 1)} (Z = {fmt(testResults.zU)})</td>
                         <td>—</td>
                         <td className={testResults.pU < 0.05 ? "sig-cell" : ""}>
                           {fmtP(testResults.pU)}
@@ -1171,9 +928,9 @@ NPAR TESTS
                         <td>rᵣᵦ = {fmt(testResults.rankBiserial)}</td>
                         <td>
                           {outliers1 + outliers2 > 0 || Math.abs(skew1) > 0.8 || Math.abs(skew2) > 0.8 ? (
-                            <span className="badge badge-recommended">★ Устойчив к выбросам</span>
+                            <span className="badge badge-recommended">Ранговый (робастен к выбросам)</span>
                           ) : (
-                            <span className="badge badge-ok">✓ Применим</span>
+                            <span className="badge badge-ok">Ранговый критерий</span>
                           )}
                         </td>
                       </tr>
@@ -1181,20 +938,22 @@ NPAR TESTS
                       {/* Levene Test */}
                       <tr className="info-row">
                         <td>
-                          <strong>Тест Ливиня</strong>
-                          <small>проверка равенства дисперсий (H₀: σ₁² = σ₂²)</small>
+                          <strong>Критерий Ливиня</strong>
+                          <small>проверка гипотезы о равенстве дисперсий (H₀: σ₁² = σ₂²)</small>
                         </td>
-                        <td>F = {fmt(testResults.fLevene)}</td>
+                        <td>F = {testResults.isDegenerate ? "—" : fmt(testResults.fLevene)}</td>
                         <td>1; {n1 + n2 - 2}</td>
-                        <td className={testResults.pLevene < 0.05 ? "sig-cell" : ""}>
-                          {fmtP(testResults.pLevene)}
+                        <td className={testResults.pLevene !== null && testResults.pLevene < 0.05 ? "sig-cell" : ""}>
+                          {testResults.isDegenerate ? "—" : fmtP(testResults.pLevene)}
                         </td>
-                        <td>Отношение s² = {fmt(testResults.varRatio, 1)}x</td>
+                        <td>Отношение s² = {testResults.isDegenerate ? "—" : Number.isFinite(testResults.varRatio) ? `${fmt(testResults.varRatio, 1)}x` : "∞"}</td>
                         <td>
-                          {testResults.pLevene < 0.05 ? (
-                            <span className="badge badge-danger">Дисперсии НЕ равны</span>
+                          {testResults.isDegenerate || testResults.pLevene === null ? (
+                            <span className="badge badge-warning">Дисперсии отсутствуют</span>
+                          ) : testResults.pLevene < 0.05 ? (
+                            <span className="badge badge-danger">Гетерогенность (p &lt; .05)</span>
                           ) : (
-                            <span className="badge badge-ok">Дисперсии однородны</span>
+                            <span className="badge badge-ok">H₀ не отвергнута (p ≥ .05)</span>
                           )}
                         </td>
                       </tr>
@@ -1203,18 +962,22 @@ NPAR TESTS
                 </div>
 
                 {/* Educational Verdict Alert */}
-                <div className={`dynamic-verdict ${testResults.pLevene < 0.05 ? "alert-viol" : "alert-ok"}`}>
+                <div className={`dynamic-verdict ${testResults.isDegenerate ? "alert-viol" : testResults.pLevene !== null && testResults.pLevene < 0.05 ? "alert-viol" : "alert-ok"}`}>
                   <div className="verdict-icon">💡</div>
                   <div className="verdict-text">
                     <strong>
-                      {testResults.pLevene < 0.05
-                        ? "Обнаружено нарушение равенства дисперсий (гетероскедастичность)!"
-                        : "Предпосылка об однородности дисперсий не нарушена."}
+                      {testResults.isDegenerate
+                        ? "Критерии Стьюдента, Уэлча и Ливиня не применимы: обе выборки константны (s² = 0)"
+                        : testResults.pLevene !== null && testResults.pLevene < 0.05
+                        ? "Обнаружены статистически значимые различия выборочных дисперсий (p < 0.05)"
+                        : "Критерий Ливиня незначим (p ≥ 0.05): нет оснований отвергать H₀"}
                     </strong>
                     <p>
-                      {testResults.pLevene < 0.05
-                        ? `Отношение дисперсий составляет ${fmt(testResults.varRatio, 1)}:1 (p Ливиня ${fmtP(testResults.pLevene)}). Классический t Стьюдента даёт p ${fmtP(testResults.pStudent)}, в то время как скорректированный t Уэлча даёт p ${fmtP(testResults.pWelch)}. Используйте в отчёте t Уэлча или U Манна-Уитни, чтобы избежать ложноположительной ошибки.`
-                        : `Разница дисперсий невелика, критерий Ливиня незначим (p ${fmtP(testResults.pLevene)}). Результаты t Стьюдента и t Уэлча практически совпадают. Если распределение не имеет грубых выбросов, можно приводить стандартный t-тест.`}
+                      {testResults.isDegenerate
+                        ? "В обеих группах все наблюдения имеют одинаковые значения, поэтому выборочная дисперсия и стандартная ошибка равны нулю. Деление на нулевую ошибку математически не определено. Для параметрического анализа данных необходима изменчивость признака в выборках."
+                        : testResults.pLevene !== null && testResults.pLevene < 0.05
+                        ? `Отношение выборочных дисперсий составляет ${Number.isFinite(testResults.varRatio) ? fmt(testResults.varRatio, 1) + ":1" : "∞"} (F = ${fmt(testResults.fLevene)}, p Ливиня ${fmtP(testResults.pLevene)}). Классический t Стьюдента чувствителен к нарушению гомогенности дисперсий, особенно при разных объемах групп. Рекомендуется опираться на t Уэлча (p ${fmtP(testResults.pWelch)}) или ранговый критерий Манна — Уитни (p ${fmtP(testResults.pU)}).`
+                        : `Разница выборочных дисперсий не достигла статистической значимости (p Ливиня ${fmtP(testResults.pLevene)}). Методологическое примечание: сохранение H₀ не доказывает строгое равенство дисперсий (при малых n критерий Ливиня имеет низкую мощность). Согласно современным методологическим публикациям (Delacre et al., 2017), t-критерий Уэлча безопасен для применения по умолчанию: при равенстве дисперсий он практически не уступает по мощности Стьюденту, а при скрытом неравенстве защищает от ложноположительных выводов.`}
                     </p>
                   </div>
                 </div>
@@ -1275,55 +1038,92 @@ NPAR TESTS
                     <small>Всего участников в исследовании: {powerN * 2} чел.</small>
                   </label>
 
-                  <div className="segmented-control">
-                    <span>Уровень значимости (α):</span>
-                    <div className="segmented-buttons">
+                                    <fieldset className="segmented-control">
+                    <legend className="segmented-legend">Уровень значимости (α):</legend>
+                    <div className="segmented-buttons" role="radiogroup" aria-label="Выбор уровня значимости альфа">
                       {[0.05, 0.01, 0.001].map((alphaVal) => (
-                        <button
+                        <label
                           key={alphaVal}
-                          type="button"
-                          className={powerAlpha === alphaVal ? "active" : ""}
-                          onClick={() => setPowerAlpha(alphaVal)}
+                          htmlFor={`power-alpha-${alphaVal}`}
+                          className={`segmented-label ${powerAlpha === alphaVal ? "active" : ""}`}
                         >
-                          {alphaVal}
-                        </button>
+                          <input
+                            type="radio"
+                            id={`power-alpha-${alphaVal}`}
+                            name="power-alpha"
+                            value={alphaVal}
+                            checked={powerAlpha === alphaVal}
+                            onChange={() => setPowerAlpha(alphaVal)}
+                            onKeyDown={(e) => handleAlphaKeyDown(e, alphaVal)}
+                            className="sr-only"
+                          />
+                          <span>{alphaVal}</span>
+                        </label>
                       ))}
                     </div>
-                  </div>
+                  </fieldset>
 
-                  <div className="segmented-control">
-                    <span>Направление гипотезы:</span>
-                    <div className="segmented-buttons">
-                      <button
-                        type="button"
-                        className={isTwoTailed ? "active" : ""}
-                        onClick={() => setIsTwoTailed(true)}
+                  <fieldset className="segmented-control">
+                    <legend className="segmented-legend">Направление гипотезы:</legend>
+                    <div className="segmented-buttons" role="radiogroup" aria-label="Выбор направления гипотезы">
+                      <label
+                        htmlFor="power-direction-two-tailed"
+                        className={`segmented-label ${isTwoTailed ? "active" : ""}`}
                       >
-                        Двусторонняя (≠)
-                      </button>
-                      <button
-                        type="button"
-                        className={!isTwoTailed ? "active" : ""}
-                        onClick={() => setIsTwoTailed(false)}
+                        <input
+                          type="radio"
+                          id="power-direction-two-tailed"
+                          name="power-direction"
+                          value="two-tailed"
+                          checked={isTwoTailed}
+                          onChange={() => setIsTwoTailed(true)}
+                          onKeyDown={(e) => handleDirectionKeyDown(e, true)}
+                          className="sr-only"
+                        />
+                        <span>Двусторонняя (≠)</span>
+                      </label>
+                      <label
+                        htmlFor="power-direction-one-tailed"
+                        className={`segmented-label ${!isTwoTailed ? "active" : ""}`}
                       >
-                        Односторонняя (&gt;)
-                      </button>
+                        <input
+                          type="radio"
+                          id="power-direction-one-tailed"
+                          name="power-direction"
+                          value="one-tailed"
+                          checked={!isTwoTailed}
+                          onChange={() => setIsTwoTailed(false)}
+                          onKeyDown={(e) => handleDirectionKeyDown(e, false)}
+                          className="sr-only"
+                        />
+                        <span>Односторонняя (&gt;)</span>
+                      </label>
                     </div>
-                  </div>
+                  </fieldset>
                 </div>
 
                 <div className="n-recommendation-box">
                   <span className="rec-title">ТРЕБУЕМЫЙ ОБЪЁМ ВЫБОРКИ ПРИ d = {fmt(cohenDInput)}:</span>
-                  <div className="rec-stats">
-                    <div>
-                      <strong>n = {powerMetrics.n80}</strong>
-                      <small>для 80% мощности (стандарт)</small>
+                  {powerMetrics.n80 !== null && powerMetrics.n90 !== null ? (
+                    <div className="rec-stats">
+                      <div>
+                        <strong>n = {powerMetrics.n80}</strong>
+                        <small>для 80% мощности (N={powerMetrics.n80 * 2})</small>
+                      </div>
+                      <div>
+                        <strong>n = {powerMetrics.n90}</strong>
+                        <small>для 90% мощности (N={powerMetrics.n90 * 2})</small>
+                      </div>
                     </div>
-                    <div>
-                      <strong>n = {powerMetrics.n90}</strong>
-                      <small>для 90% мощности (высокая надёжность)</small>
+                  ) : (
+                    <div className="rec-stats-zero">
+                      <strong>— (Расчёт n не применим при d = 0)</strong>
+                      <small>
+                        При d = 0 истинный эффект равен нулю (H₀ верна). Мощность строго равна уровню ошибки I рода (α = {(powerAlpha * 100).toFixed(1)}%).
+                        Достижение 80% или 90% мощности теоретически невозможно при любом объёме выборки.
+                      </small>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1400,7 +1200,9 @@ NPAR TESTS
                       {(powerMetrics.power * 100).toFixed(1)}%
                     </strong>
                     <small>
-                      {powerMetrics.power >= 0.8
+                      {powerMetrics.isZero
+                        ? `При d = 0 мощность равна α (${(powerAlpha * 100).toFixed(1)}%)`
+                        : powerMetrics.power >= 0.8
                         ? "Достаточная мощность (≥ 80%)"
                         : "Опасность ошибки II рода (пропуск реального эффекта!)"}
                     </small>
@@ -1415,24 +1217,50 @@ NPAR TESTS
                   <div className="metric-box">
                     <span>ПРЕВОСХОДСТВО (CLES)</span>
                     <strong>{fmt(powerMetrics.cles, 1)}%</strong>
-                    <small>вероятность, что случайный пациент из гр.2 лучше гр.1</small>
+                    <small>вероятность случайного превосходства (McGraw & Wong, 1992)</small>
                   </div>
 
                   <div className="metric-box">
-                    <span>NNT (ЧИСЛО ЛЕЧИМЫХ)</span>
-                    <strong>{Number.isFinite(powerMetrics.nnt) ? fmt(powerMetrics.nnt, 1) : "∞"}</strong>
-                    <small>пациентов нужно пролечить для 1 доп. успеха</small>
+                    <span>ПЕРЕКРЫТИЕ (OVL)</span>
+                    <strong>{fmt(powerMetrics.overlap, 1)}%</strong>
+                    <small>доля общей площади двух распределений (Cohen, 1988)</small>
                   </div>
                 </div>
 
                 <div className="psychology-trap-card">
-                  <strong>⚠️ Ловушка слабых выборок в психологии («Проклятие победителя»):</strong>
+                  <strong>⚠️ Проблема низкой мощности и переоценка эффекта («Проклятие победителя» / Winner’s Curse):</strong>
                   <p>
-                    Если исследование проводится на малой выборке (например, n = 15 в группе), а реальный эффект мал
-                    (d = 0.3), то мощность теста составляет всего ~13%. Если такой тест случайно станет «значимым»
-                    (p &lt; .05), размер эффекта d в публикации окажется завышен в 2–3 раза! Именно это явление
-                    породило «кризис воспроизводимости» в психологической науке.
+                    При исследовании маломощных эффектов на малых выборках (например, n = 15 в группе при истинном d = 0,3 мощность составляет ~13%)
+                    статистически значимыми оказываются преимущественно те редкие испытания, где выборочная оценка оказалась случайно завышенной из-за стохастического шума.
+                    Публикация преимущественно таких завышенных оценок в совокупности с публикационным смещением и практиками исследовательской гибкости
+                    (p-hacking, HARKing) рассматривается как один из существенных факторов проблем воспроизводимости в науке (Button et al., 2013; Ioannidis, 2005).
                   </p>
+                </div>
+
+                <div className="methodological-notes-card">
+                  <div className="method-note-item">
+                    <strong>📐 Допущения и расчёт мощности по нецентральному t-распределению (Cohen, 1988; Faul et al., 2007):</strong>
+                    <p>
+                      Расчёт мощности и минимального объёма выборки n для двухвыборочного критерия Стьюдента основан на
+                      численном интегрировании нецентрального t-распределения с числом степеней свободы ν = 2n − 2 и параметром нецентральности
+                      δ = |d| √(n / 2) (модель двух сбалансированных независимых групп n₁ = n₂). Метод не полагается на грубую нормальную
+                      аппроксимацию и сохраняет математическую строгость при малых n (например, при d = 2 и n = 5 мощность составляет 79,05%,
+                      а минимальный объём для достижения 80% мощности равен n = 6).
+                      Предпосылки модели: нормальность распределения признака в генеральных совокупностях и гомогенность дисперсий (σ₁² = σ₂²).
+                      Расчёт представляет теоретическую мощность при строгом соблюдении этих предпосылок; при наличии асимметрии, выбросов
+                      или гетероскедастичности фактическая эмпирическая мощность может существенно снижаться.
+                    </p>
+                  </div>
+                  <div className="method-note-item">
+                    <strong>📊 Вероятностные метрики величины эффекта (Cohen, 1988; McGraw &amp; Wong, 1992):</strong>
+                    <p>
+                      Показатели Cohen’s U₃, CLES (вероятность превосходства) и OVL (коэффициент перекрытия) описывают
+                      различия непрерывных распределений на вероятностном языке. Показатель NNT (число лечимых пациентов)
+                      в данной непрерывной песочнице исключён: прямой перевод непрерывного d в клинический NNT
+                      без эмпирической модели дихотомизации и известного исходного риска контрольной группы (CER)
+                      методологически некорректен (Furukawa &amp; Leucht, 2011; Kraemer &amp; Kupfer, 2006).
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
